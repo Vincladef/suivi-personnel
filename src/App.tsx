@@ -14,11 +14,29 @@ type ModuleKey = 'habits' | 'performances'
 type ViewKey = 'habits' | 'performances' | 'goals'
 type InputKind = 'tristate' | 'score' | 'checklist' | 'numeric' | 'note'
 type Priority = 'high' | 'medium' | 'low' | 'archived'
-type EntryState = 'unknown' | 'success' | 'excused' | 'rest' | 'inactive'
+type EntryState = 'unknown' | 'success' | 'failed' | 'excused' | 'rest' | 'inactive'
 type FrequencyKind = 'daily' | 'weekdays' | 'selected'
 type OccurrenceKind = 'standard' | 'review'
 type TargetMode = 'atLeast' | 'atMost' | 'exactly'
 type GoalHorizon = 'week' | 'month' | 'quarter' | 'year' | 'life'
+
+type TargetConfig = { mode: TargetMode; value: number; unit: string }
+
+type TrackerSubItem = {
+  id: string
+  title: string
+  inputKind: InputKind
+  checklistTemplate: string[]
+  target: TargetConfig | null
+}
+
+type TrackerSubEntry = {
+  state: EntryState
+  score: number | null
+  checklist: boolean[]
+  numericValue: number | null
+  note: string
+}
 
 type TrackerItem = {
   id: string
@@ -28,9 +46,10 @@ type TrackerItem = {
   inputKind: InputKind
   priority: Priority
   checklistTemplate: string[]
-  target: { mode: TargetMode; value: number; unit: string } | null
+  target: TargetConfig | null
   frequency: { kind: FrequencyKind; days: number[] } | null
   restAfterSuccess: number
+  subItems: TrackerSubItem[]
 }
 
 type TrackerEntry = {
@@ -39,6 +58,7 @@ type TrackerEntry = {
   checklist: boolean[]
   numericValue: number | null
   note: string
+  subEntries: Record<string, TrackerSubEntry>
 }
 
 type TrackerOccurrence = {
@@ -82,6 +102,17 @@ type DebugEntry = {
   details?: Record<string, unknown>
 }
 
+type TrackerSubDraft = {
+  id: string
+  title: string
+  inputKind: InputKind
+  checklistItems: string[]
+  newChecklistItem: string
+  targetMode: TargetMode
+  targetValue: number
+  targetUnit: string
+}
+
 type TrackerDraft = {
   module: ModuleKey
   title: string
@@ -91,10 +122,12 @@ type TrackerDraft = {
   frequencyKind: FrequencyKind
   frequencyDays: number[]
   restAfterSuccess: number
-  checklistText: string
+  checklistItems: string[]
+  newChecklistItem: string
   targetMode: TargetMode
   targetValue: number
   targetUnit: string
+  subItems: TrackerSubDraft[]
 }
 
 type TrackerEditorState = {
@@ -118,7 +151,8 @@ type GoalDraft = {
   resultKind: InputKind
   priority: Priority
   reminder: boolean
-  checklistText: string
+  checklistItems: string[]
+  newChecklistItem: string
   targetMode: TargetMode
   targetValue: number
   targetUnit: string
@@ -141,6 +175,17 @@ const likertOptions = [
   { value: 0, label: 'Non' },
 ] as const
 
+const defaultSubDraft = (): TrackerSubDraft => ({
+  id: crypto.randomUUID(),
+  title: '',
+  inputKind: 'tristate',
+  checklistItems: [],
+  newChecklistItem: '',
+  targetMode: 'atLeast',
+  targetValue: 1,
+  targetUnit: '',
+})
+
 const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   module,
   title: '',
@@ -150,10 +195,12 @@ const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   frequencyKind: 'daily',
   frequencyDays: [1, 2, 3, 4, 5],
   restAfterSuccess: 0,
-  checklistText: '',
+  checklistItems: [],
+  newChecklistItem: '',
   targetMode: 'atLeast',
   targetValue: 1,
   targetUnit: '',
+  subItems: [],
 })
 
 const defaultGoalDraft = (): GoalDraft => ({
@@ -164,7 +211,8 @@ const defaultGoalDraft = (): GoalDraft => ({
   resultKind: 'tristate',
   priority: 'medium',
   reminder: true,
-  checklistText: '',
+  checklistItems: [],
+  newChecklistItem: '',
   targetMode: 'atLeast',
   targetValue: 1,
   targetUnit: '',
@@ -180,10 +228,31 @@ function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
     frequencyKind: item.frequency?.kind ?? 'daily',
     frequencyDays: item.frequency?.days ?? [1, 2, 3, 4, 5],
     restAfterSuccess: item.restAfterSuccess,
-    checklistText: item.checklistTemplate.join(', '),
+    checklistItems: [...item.checklistTemplate],
+    newChecklistItem: '',
     targetMode: item.target?.mode ?? 'atLeast',
     targetValue: item.target?.value ?? 1,
     targetUnit: item.target?.unit ?? '',
+    subItems: item.subItems.map((subItem) => ({
+      id: subItem.id,
+      title: subItem.title,
+      inputKind: subItem.inputKind,
+      checklistItems: [...subItem.checklistTemplate],
+      newChecklistItem: '',
+      targetMode: subItem.target?.mode ?? 'atLeast',
+      targetValue: subItem.target?.value ?? 1,
+      targetUnit: subItem.target?.unit ?? '',
+    })),
+  }
+}
+
+function cloneSubEntry(entry: TrackerSubEntry): TrackerSubEntry {
+  return {
+    state: entry.state,
+    score: entry.score,
+    checklist: [...entry.checklist],
+    numericValue: entry.numericValue,
+    note: entry.note,
   }
 }
 
@@ -194,13 +263,14 @@ function cloneEntry(entry: TrackerEntry): TrackerEntry {
     checklist: [...entry.checklist],
     numericValue: entry.numericValue,
     note: entry.note,
+    subEntries: Object.fromEntries(Object.entries(entry.subEntries).map(([key, value]) => [key, cloneSubEntry(value)])),
   }
 }
 
 const seedTrackerItems: TrackerItem[] = []
 const seedGoals: Goal[] = []
 
-function emptyEntry(item: TrackerItem): TrackerEntry {
+function emptySubEntry(item: TrackerSubItem): TrackerSubEntry {
   return {
     state: 'unknown',
     score: null,
@@ -210,33 +280,84 @@ function emptyEntry(item: TrackerItem): TrackerEntry {
   }
 }
 
+function emptyEntry(item: TrackerItem): TrackerEntry {
+  return {
+    state: 'unknown',
+    score: null,
+    checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map(() => false) : [],
+    numericValue: null,
+    note: '',
+    subEntries: Object.fromEntries(item.subItems.map((subItem) => [subItem.id, emptySubEntry(subItem)])),
+  }
+}
+
 function compareNumeric(mode: TargetMode, value: number, target: number) {
   if (mode === 'atLeast') return value >= target
   if (mode === 'atMost') return value <= target
   return value === target
 }
 
-function deriveState(item: TrackerItem, entry: TrackerEntry): EntryState {
+function deriveLeafState(
+  inputKind: InputKind,
+  target: TargetConfig | null,
+  entry: { state: EntryState; score: number | null; checklist: boolean[]; numericValue: number | null; note: string },
+): EntryState {
   if (entry.state === 'rest' || entry.state === 'inactive') return entry.state
-  if (item.inputKind === 'tristate') return entry.state
-  if (item.inputKind === 'score') return entry.score != null && entry.score >= 3 ? 'success' : 'unknown'
-  if (item.inputKind === 'checklist') return entry.checklist.length > 0 && entry.checklist.every(Boolean) ? 'success' : 'unknown'
-  if (item.inputKind === 'numeric') {
-    if (entry.numericValue == null || !item.target) return 'unknown'
-    return compareNumeric(item.target.mode, entry.numericValue, item.target.value) ? 'success' : 'unknown'
+  if (inputKind === 'tristate') return entry.state
+  if (inputKind === 'score') {
+    if (entry.score == null) return 'unknown'
+    if (entry.score >= 3) return 'success'
+    if (entry.score === 2) return 'excused'
+    return 'failed'
+  }
+  if (inputKind === 'checklist') {
+    if (entry.checklist.length === 0 || entry.checklist.every((value) => !value)) return 'unknown'
+    return entry.checklist.every(Boolean) ? 'success' : 'failed'
+  }
+  if (inputKind === 'numeric') {
+    if (entry.numericValue == null || !target) return 'unknown'
+    return compareNumeric(target.mode, entry.numericValue, target.value) ? 'success' : 'failed'
   }
   return entry.note.trim() ? 'success' : 'unknown'
 }
 
+function deriveState(item: TrackerItem, entry: TrackerEntry): EntryState {
+  return deriveLeafState(item.inputKind, item.target, entry)
+}
+
+function deriveSubState(item: TrackerSubItem, entry: TrackerSubEntry): EntryState {
+  return deriveLeafState(item.inputKind, item.target, entry)
+}
+
 function goalState(goal: Goal): EntryState {
-  if (goal.resultKind === 'tristate') return goal.status
-  if (goal.resultKind === 'score') return goal.score != null && goal.score >= 3 ? 'success' : 'unknown'
-  if (goal.resultKind === 'checklist') return goal.checklist.length > 0 && goal.checklist.every(Boolean) ? 'success' : 'unknown'
-  if (goal.resultKind === 'numeric') {
-    if (goal.numericValue == null || !goal.target) return 'unknown'
-    return compareNumeric(goal.target.mode, goal.numericValue, goal.target.value) ? 'success' : 'unknown'
+  return deriveLeafState(goal.resultKind, goal.target, {
+    state: goal.status,
+    score: goal.score,
+    checklist: goal.checklist,
+    numericValue: goal.numericValue,
+    note: goal.note,
+  })
+}
+
+function stateClassName(state: EntryState) {
+  return state === 'failed' ? 'state-failed' : `state-${state}`
+}
+
+function entryLabelForInput(inputKind: InputKind, state: EntryState, score?: number | null) {
+  if (inputKind === 'tristate') {
+    return { success: 'Oui', failed: 'Non', unknown: 'A remplir', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
   }
-  return goal.note.trim() ? 'success' : 'unknown'
+  if (inputKind === 'score') {
+    const match = likertOptions.find((option) => option.value === score)
+    return match?.label ?? 'A remplir'
+  }
+  if (inputKind === 'checklist') {
+    return { success: 'Complete', failed: 'Partiel', unknown: 'A remplir', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
+  }
+  if (inputKind === 'numeric') {
+    return { success: 'Atteint', failed: 'Non atteint', unknown: 'A remplir', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
+  }
+  return { success: 'Renseigne', failed: 'Non valide', unknown: 'A remplir', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
 }
 
 function isHabitActive(item: TrackerItem, date: string) {
@@ -397,12 +518,106 @@ function setupDebugHelpers() {
   }
 }
 
+function normalizeSubItem(raw: Partial<TrackerSubItem> | undefined): TrackerSubItem {
+  return {
+    id: raw?.id ?? crypto.randomUUID(),
+    title: raw?.title ?? '',
+    inputKind: raw?.inputKind ?? 'tristate',
+    checklistTemplate: raw?.checklistTemplate ?? [],
+    target: raw?.target ?? null,
+  }
+}
+
+function normalizeTrackerItem(raw: Partial<TrackerItem>): TrackerItem {
+  return {
+    id: raw.id ?? crypto.randomUUID(),
+    module: raw.module ?? 'habits',
+    title: raw.title ?? '',
+    description: raw.description ?? '',
+    inputKind: raw.inputKind ?? 'tristate',
+    priority: raw.priority ?? 'medium',
+    checklistTemplate: raw.checklistTemplate ?? [],
+    target: raw.target ?? null,
+    frequency: raw.frequency ?? null,
+    restAfterSuccess: raw.restAfterSuccess ?? 0,
+    subItems: (raw.subItems ?? []).map((item) => normalizeSubItem(item)),
+  }
+}
+
+function normalizeSubEntry(raw: Partial<TrackerSubEntry> | undefined, item: TrackerSubItem): TrackerSubEntry {
+  const next: TrackerSubEntry = {
+    state: raw?.state ?? 'unknown',
+    score: raw?.score ?? null,
+    checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map((_, index) => raw?.checklist?.[index] ?? false) : [],
+    numericValue: raw?.numericValue ?? null,
+    note: raw?.note ?? '',
+  }
+  next.state = deriveSubState(item, next)
+  return next
+}
+
+function normalizeTrackerEntry(raw: Partial<TrackerEntry> | undefined, item: TrackerItem): TrackerEntry {
+  const next: TrackerEntry = {
+    state: raw?.state ?? 'unknown',
+    score: raw?.score ?? null,
+    checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map((_, index) => raw?.checklist?.[index] ?? false) : [],
+    numericValue: raw?.numericValue ?? null,
+    note: raw?.note ?? '',
+    subEntries: Object.fromEntries(item.subItems.map((subItem) => [subItem.id, normalizeSubEntry(raw?.subEntries?.[subItem.id], subItem)])),
+  }
+  next.state = deriveState(item, next)
+  return next
+}
+
+function normalizeGoal(raw: Partial<Goal>): Goal {
+  const goal: Goal = {
+    id: raw.id ?? crypto.randomUUID(),
+    title: raw.title ?? '',
+    description: raw.description ?? '',
+    horizon: raw.horizon ?? 'week',
+    dueDate: raw.dueDate ?? today,
+    resultKind: raw.resultKind ?? 'tristate',
+    priority: raw.priority ?? 'medium',
+    reminder: raw.reminder ?? true,
+    checklistTemplate: raw.checklistTemplate ?? [],
+    target: raw.target ?? null,
+    status: raw.status ?? 'unknown',
+    score: raw.score ?? null,
+    checklist: (raw.resultKind ?? 'tristate') === 'checklist' ? (raw.checklistTemplate ?? []).map((_, index) => raw.checklist?.[index] ?? false) : [],
+    numericValue: raw.numericValue ?? null,
+    note: raw.note ?? '',
+  }
+  goal.status = goalState(goal)
+  return goal
+}
+
+function normalizeState(raw: Partial<AppState>): AppState {
+  const trackerItems = (raw.trackerItems ?? []).map((item) => normalizeTrackerItem(item))
+  const trackerItemsById = Object.fromEntries(trackerItems.map((item) => [item.id, item]))
+  const occurrences = (raw.occurrences ?? []).map((occurrence) => ({
+    id: occurrence.id ?? crypto.randomUUID(),
+    module: occurrence.module ?? 'habits',
+    kind: occurrence.kind ?? 'standard',
+    label: occurrence.label ?? '',
+    key: occurrence.key ?? 0,
+    date: occurrence.date ?? null,
+    createdAt: occurrence.createdAt ?? new Date().toISOString(),
+    entries: Object.fromEntries(
+      Object.values(trackerItemsById)
+        .filter((item) => item.module === (occurrence.module ?? 'habits'))
+        .map((item) => [item.id, normalizeTrackerEntry(occurrence.entries?.[item.id], item)]),
+    ),
+  }))
+  const goals = (raw.goals ?? []).map((goal) => normalizeGoal(goal))
+  return { trackerItems, occurrences, goals }
+}
+
 function loadState(): AppState {
   const raw = localStorage.getItem(storageKey)
   if (!raw) return seedState()
 
   try {
-    return JSON.parse(raw) as AppState
+    return normalizeState(JSON.parse(raw) as AppState)
   } catch {
     return seedState()
   }
@@ -412,7 +627,8 @@ function entryLabel(state: EntryState) {
   return {
     unknown: 'A remplir',
     success: 'Reussi',
-    excused: 'Excuse',
+    failed: 'Non',
+    excused: 'Neutre',
     rest: 'Repos',
     inactive: 'Non concerne',
   }[state]
@@ -435,10 +651,6 @@ function periodLabel(goal: Goal) {
   if (goal.horizon === 'month') return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date)
   if (goal.horizon === 'quarter') return `T${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
   return String(date.getFullYear())
-}
-
-function parseChecklist(text: string) {
-  return text.split(',').map((item) => item.trim()).filter(Boolean)
 }
 
 function sortGoals(goals: Goal[]) {
@@ -512,7 +724,7 @@ function HistoryCarousel({
 }: {
   items: HistoryItem[]
   selectedDate: string
-  onSelect: (date: string, state: EntryState) => void
+  onSelect: (date: string) => void
 }) {
   const stripRef = useRef<HTMLDivElement | null>(null)
   const [canScrollPrevious, setCanScrollPrevious] = useState(false)
@@ -546,6 +758,7 @@ function HistoryCarousel({
     return <span className="muted-inline">Pas encore d historique.</span>
   }
 
+
   return (
     <div className="history-carousel">
       <button
@@ -564,7 +777,7 @@ function HistoryCarousel({
             key={history.occurrenceId}
             type="button"
             className={`history-chip state-${history.state} ${history.date === selectedDate ? 'active' : ''}`}
-            onClick={() => onSelect(history.date, history.state)}
+            onClick={() => onSelect(history.date)}
           >
             <span>{formatHistoryDate(history.date)}</span>
           </button>
@@ -703,9 +916,59 @@ function App() {
   }
 
 
+  function addChecklistItemToTrackerDraft() {
+    const value = trackerDraft.newChecklistItem.trim()
+    if (!value) return
+    setTrackerDraft({ ...trackerDraft, checklistItems: [...trackerDraft.checklistItems, value], newChecklistItem: '' })
+  }
+
+  function removeChecklistItemFromTrackerDraft(index: number) {
+    setTrackerDraft({ ...trackerDraft, checklistItems: trackerDraft.checklistItems.filter((_, itemIndex) => itemIndex !== index) })
+  }
+
+  function addChecklistItemToGoalDraft() {
+    const value = goalDraft.newChecklistItem.trim()
+    if (!value) return
+    setGoalDraft({ ...goalDraft, checklistItems: [...goalDraft.checklistItems, value], newChecklistItem: '' })
+  }
+
+  function removeChecklistItemFromGoalDraft(index: number) {
+    setGoalDraft({ ...goalDraft, checklistItems: goalDraft.checklistItems.filter((_, itemIndex) => itemIndex !== index) })
+  }
+
+  function addSubItemDraft() {
+    setTrackerDraft({ ...trackerDraft, subItems: [...trackerDraft.subItems, defaultSubDraft()] })
+  }
+
+  function patchSubItemDraft(subItemId: string, patch: Partial<TrackerSubDraft>) {
+    setTrackerDraft({
+      ...trackerDraft,
+      subItems: trackerDraft.subItems.map((subItem) => subItem.id === subItemId ? { ...subItem, ...patch } : subItem),
+    })
+  }
+
+  function removeSubItemDraft(subItemId: string) {
+    setTrackerDraft({ ...trackerDraft, subItems: trackerDraft.subItems.filter((subItem) => subItem.id !== subItemId) })
+  }
+
+  function addChecklistItemToSubDraft(subItemId: string) {
+    const subItem = trackerDraft.subItems.find((candidate) => candidate.id === subItemId)
+    if (!subItem) return
+    const value = subItem.newChecklistItem.trim()
+    if (!value) return
+    patchSubItemDraft(subItemId, { checklistItems: [...subItem.checklistItems, value], newChecklistItem: '' })
+  }
+
+  function removeChecklistItemFromSubDraft(subItemId: string, index: number) {
+    const subItem = trackerDraft.subItems.find((candidate) => candidate.id === subItemId)
+    if (!subItem) return
+    patchSubItemDraft(subItemId, { checklistItems: subItem.checklistItems.filter((_, itemIndex) => itemIndex !== index) })
+  }
+
+
   function saveTrackerItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const checklistTemplate = trackerDraft.inputKind === 'checklist' ? parseChecklist(trackerDraft.checklistText) : []
+    const checklistTemplate = trackerDraft.inputKind === 'checklist' ? trackerDraft.checklistItems : []
     const item: TrackerItem = {
       id: editingTrackerId ?? crypto.randomUUID(),
       module: trackerDraft.module,
@@ -721,6 +984,15 @@ function App() {
         ? { kind: trackerDraft.frequencyKind, days: trackerDraft.frequencyDays }
         : null,
       restAfterSuccess: Number(trackerDraft.restAfterSuccess),
+      subItems: trackerDraft.subItems.map((subItem) => ({
+        id: subItem.id,
+        title: subItem.title,
+        inputKind: subItem.inputKind,
+        checklistTemplate: subItem.inputKind === 'checklist' ? subItem.checklistItems : [],
+        target: subItem.inputKind === 'numeric'
+          ? { mode: subItem.targetMode, value: Number(subItem.targetValue), unit: subItem.targetUnit }
+          : null,
+      })),
     }
 
     if (editingTrackerId) {
@@ -737,9 +1009,13 @@ function App() {
             : [],
           numericValue: item.inputKind === 'numeric' ? current.numericValue : null,
           note: item.inputKind === 'note' ? current.note : '',
+          subEntries: Object.fromEntries(item.subItems.map((subItem) => {
+            const currentSubEntry = current.subEntries?.[subItem.id]
+            return [subItem.id, normalizeSubEntry(currentSubEntry, subItem)]
+          })),
         }
 
-        if (item.inputKind === 'tristate' && (current.state === 'success' || current.state === 'excused' || current.state === 'unknown')) {
+        if (item.inputKind === 'tristate' && (current.state === 'success' || current.state === 'failed' || current.state === 'unknown')) {
           nextEntry.state = current.state
         }
 
@@ -793,13 +1069,13 @@ function App() {
       resultKind: goalDraft.resultKind,
       priority: goalDraft.priority,
       reminder: goalDraft.reminder,
-      checklistTemplate: goalDraft.resultKind === 'checklist' ? parseChecklist(goalDraft.checklistText) : [],
+      checklistTemplate: goalDraft.resultKind === 'checklist' ? goalDraft.checklistItems : [],
       target: goalDraft.resultKind === 'numeric'
         ? { mode: goalDraft.targetMode, value: Number(goalDraft.targetValue), unit: goalDraft.targetUnit }
         : null,
       status: 'unknown',
       score: null,
-      checklist: goalDraft.resultKind === 'checklist' ? parseChecklist(goalDraft.checklistText).map(() => false) : [],
+      checklist: goalDraft.resultKind === 'checklist' ? goalDraft.checklistItems.map(() => false) : [],
       numericValue: null,
       note: '',
     }
@@ -825,7 +1101,7 @@ function App() {
       .filter((occurrence) => {
         const entry = occurrence.entries[itemId]
         if (!entry) return false
-        if (entry.state === 'success' || entry.state === 'excused') return true
+        if (entry.state === 'success' || entry.state === 'failed' || entry.state === 'excused') return true
         if (entry.score != null) return true
         if (entry.numericValue != null) return true
         if (entry.note.trim()) return true
@@ -840,34 +1116,54 @@ function App() {
       }))
   }
 
-  function renderTrackerEditorInput(item: TrackerItem) {
-    const entry = trackerResponseDraft
-    if (!entry) return null
+  function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<TrackerSubEntry>) {
+    if (!trackerResponseDraft) return
+    const current = trackerResponseDraft.subEntries[subItem.id] ?? emptySubEntry(subItem)
+    const next = { ...current, ...patch }
+    next.state = deriveSubState(subItem, next)
+    updateTrackerResponseDraft({
+      ...trackerResponseDraft,
+      subEntries: {
+        ...trackerResponseDraft.subEntries,
+        [subItem.id]: next,
+      },
+    })
+  }
 
+  function renderLeafResponseEditor(
+    inputKind: InputKind,
+    target: TargetConfig | null,
+    entry: { state: EntryState; score: number | null; checklist: boolean[]; numericValue: number | null; note: string },
+    checklistTemplate: string[],
+    onPatch: (patch: Partial<TrackerSubEntry>) => void,
+  ) {
     if (entry.state === 'rest' || entry.state === 'inactive') {
-      return <span className={`pill state-${entry.state}`}>{entryLabel(entry.state)}</span>
+      return <span className={`pill ${stateClassName(entry.state)}`}>{entryLabel(entry.state)}</span>
     }
 
-    if (item.inputKind === 'tristate') {
-      return (
-        <div className="tri-state">
-          <button type="button" className={entry.state === 'unknown' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'unknown' })}>Neutre</button>
-          <button type="button" className={entry.state === 'success' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'success' })}>Valide</button>
-          <button type="button" className={entry.state === 'excused' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'excused' })}>Excuse</button>
-        </div>
-      )
-    }
-
-    if (item.inputKind === 'score') {
+    if (inputKind === 'tristate') {
       return (
         <label className="field">
           <span>Reponse</span>
           <select
+            value={entry.state === 'success' ? 'yes' : entry.state === 'failed' ? 'no' : ''}
+            onChange={(event) => onPatch({ state: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
+          >
+            <option value="">Choisir</option>
+            <option value="yes">Oui</option>
+            <option value="no">Non</option>
+          </select>
+        </label>
+      )
+    }
+
+    if (inputKind === 'score') {
+      return (
+        <label className="field">
+          <span>Reponse qualitative</span>
+          <select
             value={entry.score == null ? '' : String(entry.score)}
-            onChange={(event) => updateTrackerResponseDraft({
-              ...entry,
-              score: event.target.value === '' ? null : Number(event.target.value),
-            })}
+            onChange={(event) => onPatch({ score: event.target.value === '' ? null : Number(event.target.value) })}
           >
             <option value="">Choisir</option>
             {likertOptions.map((option) => (
@@ -878,10 +1174,10 @@ function App() {
       )
     }
 
-    if (item.inputKind === 'checklist') {
+    if (inputKind === 'checklist') {
       return (
         <div className="checklist-box">
-          {item.checklistTemplate.map((label, index) => (
+          {checklistTemplate.map((label, index) => (
             <label key={label} className="check-item">
               <input
                 type="checkbox"
@@ -889,7 +1185,7 @@ function App() {
                 onChange={(event) => {
                   const next = [...entry.checklist]
                   next[index] = event.target.checked
-                  updateTrackerResponseDraft({ ...entry, checklist: next })
+                  onPatch({ checklist: next })
                 }}
               />
               <span>{label}</span>
@@ -899,47 +1195,99 @@ function App() {
       )
     }
 
-    if (item.inputKind === 'numeric') {
+    if (inputKind === 'numeric') {
       return (
         <div className="editor-grid">
           <label className="field">
-            <span>Valeur</span>
+            <span>{target?.unit ? `Valeur (${target.unit})` : 'Valeur saisie'}</span>
             <input
               type="number"
               value={entry.numericValue ?? ''}
-              onChange={(event) => updateTrackerResponseDraft({ ...entry, numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+              onChange={(event) => onPatch({ numericValue: event.target.value === '' ? null : Number(event.target.value) })}
             />
           </label>
-          <span className="muted-inline">{item.target ? `${item.target.mode === 'atLeast' ? '>= ' : item.target.mode === 'atMost' ? '<= ' : '= '}${item.target.value} ${item.target.unit}` : ''}</span>
+          <span className="muted-inline">{target ? `${target.mode === 'atLeast' ? 'Objectif minimum' : target.mode === 'atMost' ? 'Maximum autorise' : 'Objectif exact'} : ${target.value}${target.unit ? ` ${target.unit}` : ''}` : ''}</span>
         </div>
       )
     }
 
     return (
       <label className="field">
-        <span>Note</span>
-        <textarea value={entry.note} onChange={(event) => updateTrackerResponseDraft({ ...entry, note: event.target.value })} placeholder="Observation, contexte, journal..." />
+        <span>Reponse libre</span>
+        <textarea value={entry.note} onChange={(event) => onPatch({ note: event.target.value })} placeholder="Observation, contexte, journal..." />
       </label>
     )
   }
 
+  function renderTrackerEditorInput(item: TrackerItem) {
+    const entry = trackerResponseDraft
+    if (!entry) return null
+
+    return (
+      <div className="editor-grid">
+        <div className="field">
+          <span>Consigne principale</span>
+          {renderLeafResponseEditor(item.inputKind, item.target, entry, item.checklistTemplate, (patch) => {
+            const next = { ...entry, ...patch }
+            next.state = deriveState(item, next as TrackerEntry)
+            updateTrackerResponseDraft(next as TrackerEntry)
+          })}
+        </div>
+        {item.subItems.length > 0 && (
+          <div className="subitem-group">
+            <span className="history-label">Sous-consignes</span>
+            <div className="subitem-list">
+              {item.subItems.map((subItem) => {
+                const subEntry = entry.subEntries[subItem.id] ?? emptySubEntry(subItem)
+                return (
+                  <section key={subItem.id} className="subitem-card">
+                    <div className="subitem-head">
+                      <strong>{subItem.title}</strong>
+                      <span className={`pill ${stateClassName(subEntry.state)}`}>{entryLabelForInput(subItem.inputKind, subEntry.state, subEntry.score)}</span>
+                    </div>
+                    {renderLeafResponseEditor(subItem.inputKind, subItem.target, subEntry, subItem.checklistTemplate, (patch) => updateTrackerSubEntryDraft(subItem, patch))}
+                  </section>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+
   function renderGoalInput(goal: Goal) {
     if (goal.resultKind === 'tristate') {
       return (
-        <div className="tri-state">
-          <button type="button" className={goal.status === 'unknown' ? 'active' : ''} onClick={() => updateGoal(goal.id, { status: 'unknown' })}>Neutre</button>
-          <button type="button" className={goal.status === 'success' ? 'active' : ''} onClick={() => updateGoal(goal.id, { status: 'success' })}>Realise</button>
-          <button type="button" className={goal.status === 'excused' ? 'active' : ''} onClick={() => updateGoal(goal.id, { status: 'excused' })}>Reporte</button>
-        </div>
+        <label className="field">
+          <span>Reponse</span>
+          <select
+            value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
+            onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
+          >
+            <option value="">Choisir</option>
+            <option value="yes">Oui</option>
+            <option value="no">Non</option>
+          </select>
+        </label>
       )
     }
 
     if (goal.resultKind === 'score') {
       return (
-        <div className="inline-field">
-          <input type="range" min="0" max="4" step="1" value={goal.score ?? 0} onChange={(event) => updateGoal(goal.id, { score: Number(event.target.value) })} />
-          <strong>{goal.score ?? 0}/4</strong>
-        </div>
+        <label className="field">
+          <span>Reponse qualitative</span>
+          <select
+            value={goal.score == null ? '' : String(goal.score)}
+            onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
+          >
+            <option value="">Choisir</option>
+            {likertOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
       )
     }
 
@@ -966,18 +1314,26 @@ function App() {
 
     if (goal.resultKind === 'numeric') {
       return (
-        <div className="inline-field">
-          <input
-            type="number"
-            value={goal.numericValue ?? ''}
-            onChange={(event) => updateGoal(goal.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
-          />
-          <span className="muted-inline">{goal.target ? `${goal.target.mode === 'atLeast' ? '>= ' : goal.target.mode === 'atMost' ? '<= ' : '= '}${goal.target.value} ${goal.target.unit}` : ''}</span>
+        <div className="editor-grid">
+          <label className="field">
+            <span>{goal.target?.unit ? `Valeur (${goal.target.unit})` : 'Valeur saisie'}</span>
+            <input
+              type="number"
+              value={goal.numericValue ?? ''}
+              onChange={(event) => updateGoal(goal.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+            />
+          </label>
+          <span className="muted-inline">{goal.target ? `${goal.target.mode === 'atLeast' ? 'Objectif minimum' : goal.target.mode === 'atMost' ? 'Maximum autorise' : 'Objectif exact'} : ${goal.target.value}${goal.target.unit ? ` ${goal.target.unit}` : ''}` : ''}</span>
         </div>
       )
     }
 
-    return <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Resultat, apprentissage, synthese..." />
+    return (
+      <label className="field">
+        <span>Reponse libre</span>
+        <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Resultat, apprentissage, synthese..." />
+      </label>
+    )
   }
 
   function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
@@ -1032,6 +1388,71 @@ function App() {
     writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
     closeTrackerEditor()
   }
+  function renderChecklistDraftEditor(
+    items: string[],
+    newItemValue: string,
+    onChange: (value: string) => void,
+    onAdd: () => void,
+    onRemove: (index: number) => void,
+    label = 'Checklist',
+  ) {
+    return (
+      <div className="draft-builder">
+        <span className="history-label">{label}</span>
+        <div className="draft-chip-list">
+          {items.map((item, index) => (
+            <div key={`${item}-${index}`} className="draft-chip-row">
+              <span>{item}</span>
+              <button type="button" className="ghost-icon draft-remove" aria-label={`Supprimer ${item}`} onClick={() => onRemove(index)}>×</button>
+            </div>
+          ))}
+        </div>
+        <div className="draft-builder-row">
+          <input value={newItemValue} onChange={(event) => onChange(event.target.value)} placeholder="Ajouter un item" />
+          <button type="button" className="ghost-button" onClick={onAdd}>Ajouter</button>
+        </div>
+      </div>
+    )
+  }
+
+  function renderSubItemDraftEditor(subItem: TrackerSubDraft) {
+    return (
+      <section key={subItem.id} className="subitem-card subitem-draft-card">
+        <div className="subitem-head">
+          <strong>Sous-consigne</strong>
+          <button type="button" className="ghost-icon draft-remove" aria-label={`Supprimer ${subItem.title || 'la sous-consigne'}`} onClick={() => removeSubItemDraft(subItem.id)}>×</button>
+        </div>
+        <input value={subItem.title} onChange={(event) => patchSubItemDraft(subItem.id, { title: event.target.value })} placeholder="Titre de la sous-consigne" />
+        <select value={subItem.inputKind} onChange={(event) => patchSubItemDraft(subItem.id, { inputKind: event.target.value as InputKind })}>
+          <option value="tristate">Oui / Non</option>
+          <option value="score">Echelle qualitative</option>
+          <option value="checklist">Checklist</option>
+          <option value="numeric">Valeur chiffree</option>
+          <option value="note">Note libre</option>
+        </select>
+        {subItem.inputKind === 'checklist' && renderChecklistDraftEditor(
+          subItem.checklistItems,
+          subItem.newChecklistItem,
+          (value) => patchSubItemDraft(subItem.id, { newChecklistItem: value }),
+          () => addChecklistItemToSubDraft(subItem.id),
+          (index) => removeChecklistItemFromSubDraft(subItem.id, index),
+          'Items de sous-checklist',
+        )}
+        {subItem.inputKind === 'numeric' && (
+          <>
+            <select value={subItem.targetMode} onChange={(event) => patchSubItemDraft(subItem.id, { targetMode: event.target.value as TargetMode })}>
+              <option value="atLeast">Atteindre au moins</option>
+              <option value="atMost">Ne pas depasser</option>
+              <option value="exactly">Atteindre exactement</option>
+            </select>
+            <input type="number" value={subItem.targetValue} onChange={(event) => patchSubItemDraft(subItem.id, { targetValue: Number(event.target.value) })} placeholder="Objectif cible" />
+            <input value={subItem.targetUnit} onChange={(event) => patchSubItemDraft(subItem.id, { targetUnit: event.target.value })} placeholder="Unite" />
+          </>
+        )}
+      </section>
+    )
+  }
+
 
   return (
     <div className="shell minimal-shell">
@@ -1092,7 +1513,7 @@ function App() {
                       <div className="tracker-open-copy">
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
-                          <span className={`pill state-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
+                          <span className={`pill ${stateClassName(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}`}>{entryLabelForInput(item.inputKind, resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown', resolvedHabitOccurrence.entries[item.id]?.score)}</span>
                         </div>
                       </div>
                     </button>
@@ -1115,9 +1536,13 @@ function App() {
                     <HistoryCarousel
                       items={habitHistory(item.id)}
                       selectedDate={selectedHabitDate}
-                      onSelect={(date, state) => {
-                        writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, state })
+                      onSelect={(date) => {
+                        const occurrence = habitOccurrences.find((candidate) => candidate.date === date)
+                        writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, occurrenceId: occurrence?.id })
                         setSelectedHabitDate(date)
+                        if (occurrence) {
+                          openTrackerEditor('habits', item.id, occurrence.id, date)
+                        }
                       }}
                     />
                   </div>
@@ -1164,7 +1589,7 @@ function App() {
                       <div className="tracker-open-copy">
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
-                          <span className={`pill state-${selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
+                          <span className={`pill ${stateClassName(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}`}>{entryLabelForInput(item.inputKind, selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown', selectedPerformanceOccurrence?.entries[item.id]?.score)}</span>
                         </div>
                       </div>
                     </button>
@@ -1207,7 +1632,7 @@ function App() {
                     <div>
                       <strong>{goal.title}</strong>
                       <div className="tracker-meta">
-                        <span className={`pill state-${goalState(goal)}`}>{entryLabel(goalState(goal))}</span>
+                        <span className={`pill ${stateClassName(goalState(goal))}`}>{entryLabelForInput(goal.resultKind, goalState(goal), goal.score)}</span>
                         <span className="ghost-pill">{periodLabel(goal)}</span>
                       </div>
                     </div>
@@ -1228,7 +1653,7 @@ function App() {
                 <div>
                   <h3>{trackerEditorItem.title}</h3>
                   <div className="editor-context">
-                    <span className={`pill state-${trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown'}`}>{entryLabel(trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown')}</span>
+                    <span className={`pill ${stateClassName(trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown')}`}>{entryLabelForInput(trackerEditorItem.inputKind, trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown', trackerEditorOccurrence.entries[trackerEditorItem.id]?.score)}</span>
                     <span className="ghost-pill">{trackerEditor.module === 'habits' ? formatLongDate(trackerEditor.date) : trackerEditorOccurrence.label}</span>
                   </div>
                 </div>
@@ -1262,8 +1687,8 @@ function App() {
                   </select>
                   <input type="date" value={goalDraft.dueDate} onChange={(event) => setGoalDraft({ ...goalDraft, dueDate: event.target.value })} />
                   <select value={goalDraft.resultKind} onChange={(event) => setGoalDraft({ ...goalDraft, resultKind: event.target.value as InputKind })}>
-                    <option value="tristate">Validation simple</option>
-                    <option value="score">Score 0-4</option>
+                    <option value="tristate">Oui / Non</option>
+                    <option value="score">Echelle qualitative</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
@@ -1272,8 +1697,12 @@ function App() {
                     <input type="checkbox" checked={goalDraft.reminder} onChange={(event) => setGoalDraft({ ...goalDraft, reminder: event.target.checked })} />
                     Rappel
                   </label>
-                  {goalDraft.resultKind === 'checklist' && (
-                    <input value={goalDraft.checklistText} onChange={(event) => setGoalDraft({ ...goalDraft, checklistText: event.target.value })} placeholder="Checklist, separee par virgules" />
+                  {goalDraft.resultKind === 'checklist' && renderChecklistDraftEditor(
+                    goalDraft.checklistItems,
+                    goalDraft.newChecklistItem,
+                    (value) => setGoalDraft({ ...goalDraft, newChecklistItem: value }),
+                    addChecklistItemToGoalDraft,
+                    removeChecklistItemFromGoalDraft,
                   )}
                   {goalDraft.resultKind === 'numeric' && (
                     <>
@@ -1282,7 +1711,7 @@ function App() {
                         <option value="atMost">Ne pas depasser</option>
                         <option value="exactly">Atteindre exactement</option>
                       </select>
-                      <input type="number" value={goalDraft.targetValue} onChange={(event) => setGoalDraft({ ...goalDraft, targetValue: Number(event.target.value) })} placeholder="Cible" />
+                      <input type="number" value={goalDraft.targetValue} onChange={(event) => setGoalDraft({ ...goalDraft, targetValue: Number(event.target.value) })} placeholder="Objectif cible" />
                       <input value={goalDraft.targetUnit} onChange={(event) => setGoalDraft({ ...goalDraft, targetUnit: event.target.value })} placeholder="Unite" />
                     </>
                   )}
@@ -1293,8 +1722,8 @@ function App() {
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: modalView })} placeholder="Titre" />
                   <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: modalView })} placeholder="Description" />
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
-                    <option value="tristate">Validation simple</option>
-                    <option value="score">Score 0-4</option>
+                    <option value="tristate">Oui / Non</option>
+                    <option value="score">Echelle qualitative</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
@@ -1328,9 +1757,13 @@ function App() {
                       )}
                     </>
                   )}
-                  <input type="number" min="0" value={trackerDraft.restAfterSuccess} onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })} placeholder="Repos apres succes" />
-                  {trackerDraft.inputKind === 'checklist' && (
-                    <input value={trackerDraft.checklistText} onChange={(event) => setTrackerDraft({ ...trackerDraft, checklistText: event.target.value, module: modalView })} placeholder="Checklist, separee par virgules" />
+                  <input type="number" min="0" value={trackerDraft.restAfterSuccess} onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })} placeholder="Nombre de jours de repos apres succes" />
+                  {trackerDraft.inputKind === 'checklist' && renderChecklistDraftEditor(
+                    trackerDraft.checklistItems,
+                    trackerDraft.newChecklistItem,
+                    (value) => setTrackerDraft({ ...trackerDraft, newChecklistItem: value, module: modalView }),
+                    addChecklistItemToTrackerDraft,
+                    removeChecklistItemFromTrackerDraft,
                   )}
                   {trackerDraft.inputKind === 'numeric' && (
                     <>
@@ -1339,10 +1772,17 @@ function App() {
                         <option value="atMost">Ne pas depasser</option>
                         <option value="exactly">Atteindre exactement</option>
                       </select>
-                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: Number(event.target.value), module: modalView })} placeholder="Cible" />
+                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: Number(event.target.value), module: modalView })} placeholder="Objectif cible" />
                       <input value={trackerDraft.targetUnit} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetUnit: event.target.value, module: modalView })} placeholder="Unite" />
                     </>
                   )}
+                  <div className="draft-builder">
+                    <span className="history-label">Sous-consignes</span>
+                    <div className="subitem-list">
+                      {trackerDraft.subItems.map((subItem) => renderSubItemDraftEditor(subItem))}
+                    </div>
+                    <button type="button" className="ghost-button" onClick={addSubItemDraft}>Ajouter une sous-consigne</button>
+                  </div>
                   <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
                 </form>
               )}
