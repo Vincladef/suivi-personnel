@@ -595,7 +595,7 @@ small,
 
 @media (max-width: 720px) {
   .main {
-    padding: 0.9rem;
+    padding: 0.78rem;
   }
 
   .surface-head,
@@ -603,6 +603,44 @@ small,
   .tracker-head,
   .modal-head {
     align-items: flex-start;
+  }
+
+  .surface-panel,
+  .tracker-card,
+  .goal-card,
+  .empty-panel {
+    padding: 1rem;
+  }
+
+  .surface-panel {
+    min-height: calc(100vh - 7.5rem);
+  }
+
+  .page-head {
+    gap: 0.8rem;
+    align-items: center;
+  }
+
+  .page-head h2 {
+    font-size: 1.08rem;
+  }
+
+  .fab-button {
+    width: 46px;
+    height: 46px;
+    font-size: 1.4rem;
+  }
+
+  .modal-backdrop {
+    padding: 0.45rem;
+    align-items: end;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: calc(100vh - 0.45rem);
+    border-radius: 26px 26px 18px 18px;
+    padding: 1rem;
   }
 
   .history-strip {
@@ -862,7 +900,7 @@ small,
   .date-nav-controls {
     width: 100%;
     grid-template-columns: 36px minmax(0, 1fr) 36px;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   .history-nav {
@@ -875,22 +913,36 @@ small,
   }
 
   .history-chip {
-    flex-basis: 140px;
-    min-width: 140px;
+    flex-basis: 132px;
+    min-width: 132px;
   }
 
   .check-item-row {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 0.6rem;
+    padding: 0.65rem 0.7rem;
   }
 
   .check-item-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    padding-left: 2.95rem;
+    grid-column: auto;
+    justify-content: flex-end;
+    align-self: center;
+    padding-left: 0;
   }
 
   .tracker-open {
     align-items: flex-start;
+  }
+
+  .check-toggle,
+  .compact-icon-action {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  .tracker-head {
+    gap: 0.65rem;
   }
 
 }
