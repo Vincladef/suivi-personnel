@@ -574,49 +574,6 @@ function periodLabel(goal: Goal) {
   return String(date.getFullYear())
 }
 
-function daysUntil(target: string) {
-  return daysBetween(today, target)
-}
-
-function goalUrgency(goal: Goal) {
-  const delta = daysUntil(goal.dueDate)
-
-  if (delta < 0) {
-    return { tone: 'overdue', label: `En retard de ${Math.abs(delta)} jour(s)` }
-  }
-
-  if (delta === 0) {
-    return { tone: 'today', label: "A traiter aujourd'hui" }
-  }
-
-  if (delta <= 3) {
-    return { tone: 'soon', label: `Echeance dans ${delta} jour(s)` }
-  }
-
-  return { tone: 'scheduled', label: `Planifie dans ${delta} jour(s)` }
-}
-
-function goalProgressLabel(goal: Goal) {
-  if (goal.resultKind === 'checklist') {
-    const done = goal.checklist.filter(Boolean).length
-    return `${done}/${goal.checklist.length} jalons`
-  }
-
-  if (goal.resultKind === 'score') {
-    return `${goal.score ?? 0}/4`
-  }
-
-  if (goal.resultKind === 'numeric') {
-    return goal.numericValue != null ? `${goal.numericValue} ${goal.target?.unit ?? ''}`.trim() : 'Non renseigne'
-  }
-
-  if (goal.resultKind === 'note') {
-    return goal.note.trim() ? 'Note renseignee' : 'Note vide'
-  }
-
-  return entryLabel(goal.status)
-}
-
 function parseChecklist(text: string) {
   return text.split(',').map((item) => item.trim()).filter(Boolean)
 }
@@ -637,14 +594,14 @@ function sortGoals(goals: Goal[]) {
 }
 
 function App() {
-  const [view, setView] = useState<ViewKey>('overview')
+  const [view, setView] = useState<ViewKey>('habits')
   const [state, setState] = useState<AppState>(() => loadState())
   const [habitPriorityFilter, setHabitPriorityFilter] = useState<'all' | Priority>('all')
   const [performancePriorityFilter, setPerformancePriorityFilter] = useState<'all' | Priority>('all')
   const [goalView, setGoalView] = useState<'week' | 'month' | 'year' | 'all'>('all')
-  const [showHabitDetails, setShowHabitDetails] = useState(true)
-  const [showPerformanceDetails, setShowPerformanceDetails] = useState(true)
-  const [hideRestingPerformances, setHideRestingPerformances] = useState(false)
+  const [showHabitDetails, setShowHabitDetails] = useState(false)
+  const [showPerformanceDetails, setShowPerformanceDetails] = useState(false)
+  const [hideRestingPerformances, setHideRestingPerformances] = useState(true)
   const [habitOccurrenceId, setHabitOccurrenceId] = useState('')
   const [performanceOccurrenceId, setPerformanceOccurrenceId] = useState('')
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
@@ -658,32 +615,27 @@ function App() {
     localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
 
-  useEffect(() => {
-    const habitCurrent = state.occurrences
-      .filter((occurrence) => occurrence.module === 'habits')
-      .sort((left, right) => right.key - left.key)[0]
-    const performanceCurrent = state.occurrences
-      .filter((occurrence) => occurrence.module === 'performances')
-      .sort((left, right) => right.key - left.key)[0]
-
-    if (!habitOccurrenceId && habitCurrent) {
-      setHabitOccurrenceId(habitCurrent.id)
-    }
-    if (!performanceOccurrenceId && performanceCurrent) {
-      setPerformanceOccurrenceId(performanceCurrent.id)
-    }
-  }, [state.occurrences, habitOccurrenceId, performanceOccurrenceId])
-
   const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
   const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
   const habitOccurrences = state.occurrences
-    .filter((occurrence) => occurrence.module === 'habits')
+    .filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard')
     .sort((left, right) => right.key - left.key)
   const performanceOccurrences = state.occurrences
     .filter((occurrence) => occurrence.module === 'performances')
     .sort((left, right) => right.key - left.key)
+
+  useEffect(() => {
+    if (!habitOccurrenceId && habitOccurrences[0]) {
+      setHabitOccurrenceId(habitOccurrences[0].id)
+    }
+    if (!performanceOccurrenceId && performanceOccurrences[0]) {
+      setPerformanceOccurrenceId(performanceOccurrences[0].id)
+    }
+  }, [habitOccurrences, performanceOccurrences, habitOccurrenceId, performanceOccurrenceId])
+
   const selectedHabitOccurrence = habitOccurrences.find((occurrence) => occurrence.id === habitOccurrenceId) ?? habitOccurrences[0]
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
+  const selectedHabitDate = selectedHabitOccurrence?.date ?? habitOccurrences[0]?.date ?? today
 
   const sortedGoals = sortGoals(state.goals)
   const visibleGoals = sortedGoals.filter((goal) => {
@@ -702,46 +654,10 @@ function App() {
   const activeHabitsToday = selectedHabitOccurrence
     ? habitItems.filter((item) => selectedHabitOccurrence.entries[item.id]?.state !== 'inactive')
     : []
-  const restingHabitsToday = selectedHabitOccurrence
-    ? habitItems.filter((item) => selectedHabitOccurrence.entries[item.id]?.state === 'rest')
-    : []
   const activePerformancesNow = selectedPerformanceOccurrence
     ? performanceItems.filter((item) => selectedPerformanceOccurrence.entries[item.id]?.state !== 'rest')
     : []
-
   const dueTodayGoals = sortedGoals.filter((goal) => goal.reminder && goal.dueDate === today)
-  const overdueGoals = sortedGoals.filter((goal) => goal.reminder && daysUntil(goal.dueDate) < 0)
-  const dueSoonGoals = sortedGoals.filter((goal) => goal.reminder && daysUntil(goal.dueDate) >= 0 && daysUntil(goal.dueDate) <= 3)
-  const completedGoals = sortedGoals.filter((goal) => goalState(goal) === 'success').length
-  const completionRatio = sortedGoals.length > 0 ? Math.round((completedGoals / sortedGoals.length) * 100) : 0
-
-  const actionQueue = [
-    ...activeHabitsToday
-      .filter((item) => item.priority === 'high')
-      .slice(0, 3)
-      .map((item) => `Habitude prioritaire · ${item.title}`),
-    ...activePerformancesNow
-      .filter((item) => item.priority === 'high')
-      .slice(0, 3)
-      .map((item) => `Performance cle · ${item.title}`),
-    ...sortGoals(
-      sortedGoals.filter((goal) => {
-        const urgency = daysUntil(goal.dueDate)
-        return goal.priority === 'high' && urgency <= 3
-      }),
-    )
-      .slice(0, 4)
-      .map((goal) => `Objectif ${goalUrgency(goal).label.toLowerCase()} · ${goal.title}`),
-  ]
-
-  const overviewMetrics = [
-    { label: 'Habitudes actives', value: String(activeHabitsToday.length), hint: `${restingHabitsToday.length} en repos` },
-    { label: 'Performances actives', value: String(activePerformancesNow.length), hint: `${performanceItems.length} suivis total` },
-    { label: 'Objectifs prioritaires', value: String(sortedGoals.filter((goal) => goal.priority === 'high').length), hint: `${dueTodayGoals.length} rappels aujourd'hui` },
-    { label: 'Bilans disponibles', value: String(state.occurrences.filter((occurrence) => occurrence.kind === 'review').length), hint: 'moments de synthese distincts' },
-    { label: 'Objectifs completes', value: `${completionRatio}%`, hint: `${completedGoals}/${sortedGoals.length} boucles` },
-    { label: 'Alertes echeance', value: String(overdueGoals.length + dueSoonGoals.length), hint: `${overdueGoals.length} retard · ${dueSoonGoals.length} a anticiper` },
-  ]
 
   function patchState(patch: Partial<AppState>) {
     setState((current) => ({ ...current, ...patch }))
@@ -785,9 +701,10 @@ function App() {
   function createNewOccurrence(module: ModuleKey, kind: OccurrenceKind) {
     const occurrence = createOccurrence(module, kind, state.trackerItems, state.occurrences)
     patchState({ occurrences: [...state.occurrences, occurrence] })
-    if (module === 'habits') {
+    if (module === 'habits' && kind === 'standard') {
       setHabitOccurrenceId(occurrence.id)
-    } else {
+    }
+    if (module === 'performances') {
       setPerformanceOccurrenceId(occurrence.id)
     }
     setAdminMessage(`${kind === 'review' ? 'Bilan' : module === 'habits' ? 'Nouveau jour' : 'Nouvelle iteration'} cree.`)
@@ -904,15 +821,6 @@ function App() {
     setAdminMessage('Test rappels execute.')
   }
 
-  function prepareDay() {
-    setReminderPreview(
-      actionQueue.length > 0
-        ? actionQueue
-        : ['File active vide. Le systeme est a jour pour le moment.'],
-    )
-    setAdminMessage('File active preparee.')
-  }
-
   function exportJson() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
     const link = document.createElement('a')
@@ -935,6 +843,21 @@ function App() {
     } catch {
       setAdminMessage('Import JSON invalide.')
     }
+  }
+
+  function selectHabitDate(date: string) {
+    const match = habitOccurrences.find((occurrence) => occurrence.date === date)
+    if (match) {
+      setHabitOccurrenceId(match.id)
+    }
+  }
+
+  function habitHistory(itemId: string) {
+    return habitOccurrences.slice(0, 7).map((occurrence) => ({
+      occurrenceId: occurrence.id,
+      date: occurrence.date ?? '',
+      state: occurrence.entries[itemId]?.state ?? 'unknown',
+    }))
   }
 
   function renderTrackerInput(occurrence: TrackerOccurrence, item: TrackerItem) {
@@ -1076,232 +999,124 @@ function App() {
     .filter((item) => !hideRestingPerformances || selectedPerformanceOccurrence?.entries[item.id]?.state !== 'rest')
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">
+    <div className="shell compact-shell">
+      <aside className="sidebar compact-sidebar">
+        <div className="brand compact-brand">
           <div className="brand-mark">🌀</div>
           <div>
             <h1>Application de suivi</h1>
-            <p>Habitudes, performances, objectifs</p>
+            <p>{activeHabitsToday.length} habitudes · {activePerformancesNow.length} performances · {sortedGoals.length} objectifs</p>
           </div>
         </div>
 
-        <nav className="nav">
-          <button type="button" className={`nav-link ${view === 'overview' ? 'active' : ''}`} onClick={() => setView('overview')}>Overview</button>
+        <nav className="nav compact-nav">
           <button type="button" className={`nav-link ${view === 'habits' ? 'active' : ''}`} onClick={() => { setView('habits'); setTrackerDraft(defaultTrackerDraft('habits')) }}>Habitudes</button>
           <button type="button" className={`nav-link ${view === 'performances' ? 'active' : ''}`} onClick={() => { setView('performances'); setTrackerDraft(defaultTrackerDraft('performances')) }}>Performances</button>
           <button type="button" className={`nav-link ${view === 'goals' ? 'active' : ''}`} onClick={() => setView('goals')}>Objectifs</button>
         </nav>
 
-        <div className="sidebar-card">
-          <span className="eyebrow">Etat</span>
-          <strong>{state.trackerItems.length} suivis actifs</strong>
-          <p>{state.goals.length} objectifs geres. Systeme local-first avec export JSON.</p>
+        <div className="status-pills">
+          <span className="ghost-pill">Jour: {selectedHabitDate}</span>
+          <span className="ghost-pill">Rappels: {dueTodayGoals.length}</span>
         </div>
 
-        <div className="sidebar-card sidebar-card-warm">
-          <span className="eyebrow">Administration</span>
-          <p>{adminMessage}</p>
-          <div className="sidebar-actions">
+        <details className="settings-menu">
+          <summary aria-label="Reglages globaux">⚙</summary>
+          <div className="menu-popover">
             <button type="button" className="ghost-button" onClick={() => recalcModule('habits')}>Sync habitudes</button>
             <button type="button" className="ghost-button" onClick={() => recalcModule('performances')}>Sync performances</button>
             <button type="button" className="ghost-button" onClick={exportJson}>Exporter JSON</button>
           </div>
-        </div>
+        </details>
+
+        <details className="panel compact-panel">
+          <summary>Importer un export JSON</summary>
+          <div className="form-grid compact-form">
+            <label htmlFor={importFieldId} className="muted-label">Coller un export JSON</label>
+            <textarea id={importFieldId} value={importJson} onChange={(event) => setImportJson(event.target.value)} placeholder="Coller un export JSON pour recharger l'app" />
+            <button type="button" className="ghost-button" onClick={importState}>Importer</button>
+          </div>
+        </details>
+
+        <p className="sidebar-note">{adminMessage}</p>
       </aside>
 
-      <main className="main">
-        <section className="hero">
+      <main className="main compact-main">
+        <section className="topbar panel">
           <div>
-            <span className="eyebrow">Pilotage personnel</span>
-            <h2>Un seul tableau de bord pour agir, progresser et garder le cap.</h2>
-            <p>
-              Trois modules coherents, des etats metier explicites, des bilans distincts et une logique de repos
-              automatique pour retirer du bruit quand un item a deja gagne.
-            </p>
+            <span className="eyebrow">{view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : 'Objectifs'}</span>
+            <h2>{view === 'habits' ? 'Selectionne un jour et remplis chaque consigne.' : view === 'performances' ? 'Travaille par iteration, avec peu d options visibles.' : 'Garde les echeances et rappels sous controle.'}</h2>
           </div>
-          <div className="hero-badges">
-            <span>{habitOccurrences.length} jours / bilans habitudes</span>
-            <span>{performanceOccurrences.length} iterations / bilans performances</span>
-            <span>{dueTodayGoals.length} rappels aujourd&apos;hui</span>
+          <div className="status-pills">
+            <span className="ghost-pill">Local-first</span>
+            <span className="ghost-pill">JSON export</span>
           </div>
         </section>
-
-        <section className="metrics-grid">
-          {overviewMetrics.map((metric) => (
-            <article key={metric.label} className="metric-card">
-              <span className="metric-label">{metric.label}</span>
-              <strong>{metric.value}</strong>
-              <em>{metric.hint}</em>
-            </article>
-          ))}
-        </section>
-
-        {view === 'overview' && (
-          <>
-            <section className="board-grid">
-              <article className="panel panel-large">
-                <span className="eyebrow">Aujourd hui</span>
-                <h3>Priorites immediates</h3>
-                <div className="overview-columns">
-                  <div className="focus-column">
-                    <h4>Habitudes actives</h4>
-                    {activeHabitsToday.slice(0, 5).map((item) => (
-                      <div key={item.id} className="focus-card">
-                        <strong>{item.title}</strong>
-                        <span>{priorityLabel(item.priority)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="focus-column">
-                    <h4>Performances a travailler</h4>
-                    {activePerformancesNow.slice(0, 5).map((item) => (
-                      <div key={item.id} className="focus-card">
-                        <strong>{item.title}</strong>
-                        <span>{priorityLabel(item.priority)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="focus-column">
-                    <h4>Objectifs critiques</h4>
-                    {sortedGoals.filter((goal) => goal.priority === 'high').slice(0, 5).map((goal) => (
-                      <div key={goal.id} className="focus-card">
-                        <strong>{goal.title}</strong>
-                        <span>{periodLabel(goal)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </article>
-
-              <article className="panel">
-                <span className="eyebrow">Centre de pilotage</span>
-                <h3>File active</h3>
-                <div className="action-stack">
-                  <button type="button" onClick={prepareDay}>Preparer ma journee</button>
-                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'standard')}>Ouvrir un nouveau jour</button>
-                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Ouvrir une iteration</button>
-                </div>
-                <div className="activity-list">
-                  {actionQueue.length > 0 ? actionQueue.map((line) => (
-                    <div key={line} className="activity-item">
-                      <strong>{line}</strong>
-                    </div>
-                  )) : (
-                    <div className="activity-item">
-                      <strong>Aucune action urgente</strong>
-                      <p>Les elements critiques ont deja ete traites ou n ont pas encore d echeance proche.</p>
-                    </div>
-                  )}
-                </div>
-              </article>
-            </section>
-
-            <section className="board-grid">
-              <article className="panel panel-large">
-                <span className="eyebrow">Rappels</span>
-                <h3>Echeances et rappels</h3>
-                <div className="activity-list">
-                  {overdueGoals.length > 0 ? overdueGoals.map((goal) => (
-                    <div key={goal.id} className="activity-item urgency-overdue">
-                      <strong>{goal.title}</strong>
-                      <p>{goalUrgency(goal).label} · {periodLabel(goal)}</p>
-                    </div>
-                  )) : null}
-                  {dueSoonGoals.length > 0 ? dueSoonGoals.map((goal) => (
-                    <div key={goal.id} className="activity-item">
-                      <strong>{goal.title}</strong>
-                      <p>{goalUrgency(goal).label} · {periodLabel(goal)}</p>
-                    </div>
-                  )) : (
-                    overdueGoals.length === 0 && <div className="activity-item">
-                      <strong>Pas de rappel critique</strong>
-                      <p>Aucun objectif avec rappel n arrive a echeance dans les 3 prochains jours.</p>
-                    </div>
-                  )}
-                </div>
-              </article>
-
-            </section>
-
-            <section className="board-grid">
-              <article className="panel panel-large">
-                <span className="eyebrow">Regles clefs</span>
-                <h3>Etats metier conserves</h3>
-                <div className="state-grid">
-                  {(['unknown', 'success', 'excused', 'rest', 'inactive'] as EntryState[]).map((stateValue) => (
-                    <div key={stateValue} className={`state-card state-${stateValue}`}>
-                      <strong>{entryLabel(stateValue)}</strong>
-                      <p>
-                        {{
-                          unknown: 'A remplir ou pas encore evalye.',
-                          success: 'Reussite, validation ou cible atteinte.',
-                          excused: 'Neutralise / reporte, sans penalite.',
-                          rest: 'Pause automatique normale apres victoire.',
-                          inactive: 'Non concerne pour cette occurrence.',
-                        }[stateValue]}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </article>
-
-              <article className="panel">
-                <span className="eyebrow">Portabilite</span>
-                <h3>Import / export</h3>
-                <label htmlFor={importFieldId} className="muted-label">Coller un export JSON</label>
-                <textarea id={importFieldId} value={importJson} onChange={(event) => setImportJson(event.target.value)} placeholder="Coller un export JSON pour recharger l'app" />
-                <button type="button" className="ghost-button" onClick={importState}>Importer</button>
-              </article>
-            </section>
-          </>
-        )}
 
         {view === 'habits' && selectedHabitOccurrence && (
-          <section className="workspace-grid">
+          <section className="workspace-grid compact-grid">
             <article className="panel panel-large">
-              <div className="panel-head panel-head-stack">
+              <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Habitudes</span>
                   <h3>{selectedHabitOccurrence.label}</h3>
                 </div>
-                <div className="toolbar">
-                  <select value={habitOccurrenceId} onChange={(event) => setHabitOccurrenceId(event.target.value)}>
-                    {habitOccurrences.map((occurrence) => (
-                      <option key={occurrence.id} value={occurrence.id}>{occurrence.label} · {occurrence.kind === 'review' ? 'Bilan' : 'Jour'}</option>
-                    ))}
-                  </select>
+                <details className="settings-menu inline-settings">
+                  <summary aria-label="Reglages habitudes">⚙</summary>
+                  <div className="menu-popover">
+                    <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'standard')}>Nouveau jour</button>
+                    <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'review')}>Nouveau bilan</button>
+                    <button type="button" className="ghost-button" onClick={() => recalcModule('habits')}>Recalcul global</button>
+                  </div>
+                </details>
+              </div>
+
+              <div className="toolbar compact-toolbar">
+                <label className="field">
+                  <span>Jour</span>
+                  <input type="date" value={selectedHabitDate} onChange={(event) => selectHabitDate(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Priorite</span>
                   <select value={habitPriorityFilter} onChange={(event) => setHabitPriorityFilter(event.target.value as 'all' | Priority)}>
-                    <option value="all">Toutes priorites</option>
+                    <option value="all">Toutes</option>
                     {priorityOrder.map((priority) => <option key={priority} value={priority}>{priorityLabel(priority)}</option>)}
                   </select>
-                  <label className="toggle"><input type="checkbox" checked={showHabitDetails} onChange={(event) => setShowHabitDetails(event.target.checked)} /> Mode detaille</label>
-                </div>
+                </label>
+                <label className="toggle"><input type="checkbox" checked={showHabitDetails} onChange={(event) => setShowHabitDetails(event.target.checked)} /> Details</label>
               </div>
 
               <div className="tracker-list">
                 {visibleHabitItems.map((item) => (
-                  <article key={item.id} className="tracker-card">
+                  <article key={item.id} className="tracker-card compact-card">
                     <div className="tracker-head">
                       <div>
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
                           <span className={`pill priority-${item.priority}`}>{priorityLabel(item.priority)}</span>
                           <span className={`pill state-${selectedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
-                          <span className="ghost-pill">{item.inputKind}</span>
                         </div>
                       </div>
                     </div>
 
-                    {showHabitDetails && (
-                      <div className="detail-stack">
-                        <p>{item.description}</p>
-                        <small>
-                          Frequence : {item.frequency?.kind === 'daily' ? 'Tous les jours' : item.frequency?.kind === 'weekdays' ? 'Jours de semaine' : `Jours precis (${(item.frequency?.days ?? []).map((day) => dayLabels[day]).join(', ')})`}
-                          {' · '}Repos apres reussite : {item.restAfterSuccess} jour(s)
-                        </small>
+                    {showHabitDetails && <p className="compact-description">{item.description}</p>}
+
+                    <div className="history-row">
+                      <span className="history-label">Historique</span>
+                      <div className="history-strip">
+                        {habitHistory(item.id).map((history) => (
+                          <button
+                            key={`${item.id}-${history.occurrenceId}`}
+                            type="button"
+                            className={`history-chip state-${history.state} ${history.occurrenceId === selectedHabitOccurrence.id ? 'active' : ''}`}
+                            onClick={() => setHabitOccurrenceId(history.occurrenceId)}
+                          >
+                            <span>{history.date.slice(5)}</span>
+                            <strong>{entryLabel(history.state)}</strong>
+                          </button>
+                        ))}
                       </div>
-                    )}
+                    </div>
 
                     {renderTrackerInput(selectedHabitOccurrence, item)}
                   </article>
@@ -1310,33 +1125,22 @@ function App() {
             </article>
 
             <article className="stack">
-              <article className="panel">
-                <span className="eyebrow">Actions</span>
-                <h3>Jour, bilan, sync</h3>
-                <div className="action-stack">
-                  <button type="button" onClick={() => createNewOccurrence('habits', 'standard')}>Nouveau jour</button>
-                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'review')}>Nouveau bilan</button>
-                  <button type="button" className="ghost-button" onClick={() => recalcModule('habits')}>Recalcul global</button>
-                </div>
-              </article>
-
-              <article className="panel">
-                <span className="eyebrow">Nouvelle habitude</span>
-                <h3>Ajouter un point de suivi</h3>
-                <form className="form-grid" onSubmit={addTrackerItem}>
-                  <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value })} placeholder="Nom de l'habitude" />
-                  <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value })} placeholder="Consigne ou description" />
-                  <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind })}>
+              <details className="panel compact-panel">
+                <summary>Ajouter une habitude</summary>
+                <form className="form-grid compact-form" onSubmit={addTrackerItem}>
+                  <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: 'habits' })} placeholder="Nom de l'habitude" />
+                  <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: 'habits' })} placeholder="Consigne ou description" />
+                  <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: 'habits' })}>
                     <option value="tristate">Validation tri-etat</option>
                     <option value="score">Score 0-4</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
                   </select>
-                  <select value={trackerDraft.priority} onChange={(event) => setTrackerDraft({ ...trackerDraft, priority: event.target.value as Priority })}>
+                  <select value={trackerDraft.priority} onChange={(event) => setTrackerDraft({ ...trackerDraft, priority: event.target.value as Priority, module: 'habits' })}>
                     {priorityOrder.map((priority) => <option key={priority} value={priority}>{priorityLabel(priority)}</option>)}
                   </select>
-                  <select value={trackerDraft.frequencyKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, frequencyKind: event.target.value as FrequencyKind })}>
+                  <select value={trackerDraft.frequencyKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, frequencyKind: event.target.value as FrequencyKind, module: 'habits' })}>
                     <option value="daily">Tous les jours</option>
                     <option value="weekdays">Jours de semaine</option>
                     <option value="selected">Certains jours</option>
@@ -1353,6 +1157,7 @@ function App() {
                               frequencyDays: event.target.checked
                                 ? [...trackerDraft.frequencyDays, day].sort((a, b) => a - b)
                                 : trackerDraft.frequencyDays.filter((value) => value !== day),
+                              module: 'habits',
                             })}
                           />
                           <span>{label}</span>
@@ -1360,70 +1165,79 @@ function App() {
                       ))}
                     </div>
                   )}
-                  <input type="number" min="0" value={trackerDraft.restAfterSuccess} onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value) })} placeholder="Repos apres succes" />
+                  <input type="number" min="0" value={trackerDraft.restAfterSuccess} onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: 'habits' })} placeholder="Repos apres succes" />
                   {trackerDraft.inputKind === 'checklist' && (
-                    <input value={trackerDraft.checklistText} onChange={(event) => setTrackerDraft({ ...trackerDraft, checklistText: event.target.value })} placeholder="Checklist separee par virgules" />
+                    <input value={trackerDraft.checklistText} onChange={(event) => setTrackerDraft({ ...trackerDraft, checklistText: event.target.value, module: 'habits' })} placeholder="Checklist separee par virgules" />
                   )}
                   {trackerDraft.inputKind === 'numeric' && (
                     <>
-                      <select value={trackerDraft.targetMode} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetMode: event.target.value as TargetMode })}>
+                      <select value={trackerDraft.targetMode} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetMode: event.target.value as TargetMode, module: 'habits' })}>
                         <option value="atLeast">Atteindre au moins</option>
                         <option value="atMost">Ne pas depasser</option>
                         <option value="exactly">Atteindre exactement</option>
                       </select>
-                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: Number(event.target.value) })} placeholder="Cible" />
-                      <input value={trackerDraft.targetUnit} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetUnit: event.target.value })} placeholder="Unite" />
+                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: Number(event.target.value), module: 'habits' })} placeholder="Cible" />
+                      <input value={trackerDraft.targetUnit} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetUnit: event.target.value, module: 'habits' })} placeholder="Unite" />
                     </>
                   )}
                   <button type="submit">Ajouter l'habitude</button>
                 </form>
-              </article>
+              </details>
             </article>
           </section>
         )}
 
         {view === 'performances' && selectedPerformanceOccurrence && (
-          <section className="workspace-grid">
+          <section className="workspace-grid compact-grid">
             <article className="panel panel-large">
-              <div className="panel-head panel-head-stack">
+              <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Performances</span>
                   <h3>{selectedPerformanceOccurrence.label}</h3>
                 </div>
-                <div className="toolbar">
+                <details className="settings-menu inline-settings">
+                  <summary aria-label="Reglages performances">⚙</summary>
+                  <div className="menu-popover">
+                    <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Nouvelle iteration</button>
+                    <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'review')}>Nouveau bilan</button>
+                    <button type="button" className="ghost-button" onClick={() => recalcModule('performances')}>Recalcul global</button>
+                  </div>
+                </details>
+              </div>
+
+              <div className="toolbar compact-toolbar">
+                <label className="field">
+                  <span>Iteration</span>
                   <select value={performanceOccurrenceId} onChange={(event) => setPerformanceOccurrenceId(event.target.value)}>
                     {performanceOccurrences.map((occurrence) => (
-                      <option key={occurrence.id} value={occurrence.id}>{occurrence.label} · {occurrence.kind === 'review' ? 'Bilan' : 'Iteration'}</option>
+                      <option key={occurrence.id} value={occurrence.id}>{occurrence.label}</option>
                     ))}
                   </select>
+                </label>
+                <label className="field">
+                  <span>Priorite</span>
                   <select value={performancePriorityFilter} onChange={(event) => setPerformancePriorityFilter(event.target.value as 'all' | Priority)}>
-                    <option value="all">Toutes priorites</option>
+                    <option value="all">Toutes</option>
                     {priorityOrder.map((priority) => <option key={priority} value={priority}>{priorityLabel(priority)}</option>)}
                   </select>
-                  <label className="toggle"><input type="checkbox" checked={showPerformanceDetails} onChange={(event) => setShowPerformanceDetails(event.target.checked)} /> Mode detaille</label>
-                  <label className="toggle"><input type="checkbox" checked={hideRestingPerformances} onChange={(event) => setHideRestingPerformances(event.target.checked)} /> Masquer repos</label>
-                </div>
+                </label>
+                <label className="toggle"><input type="checkbox" checked={showPerformanceDetails} onChange={(event) => setShowPerformanceDetails(event.target.checked)} /> Details</label>
+                <label className="toggle"><input type="checkbox" checked={hideRestingPerformances} onChange={(event) => setHideRestingPerformances(event.target.checked)} /> Masquer repos</label>
               </div>
 
               <div className="tracker-list">
                 {visiblePerformanceItems.map((item) => (
-                  <article key={item.id} className="tracker-card">
+                  <article key={item.id} className="tracker-card compact-card">
                     <div className="tracker-head">
                       <div>
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
                           <span className={`pill priority-${item.priority}`}>{priorityLabel(item.priority)}</span>
                           <span className={`pill state-${selectedPerformanceOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
-                          <span className="ghost-pill">{item.inputKind}</span>
                         </div>
                       </div>
                     </div>
-                    {showPerformanceDetails && (
-                      <div className="detail-stack">
-                        <p>{item.description}</p>
-                        <small>Repos apres victoire : {item.restAfterSuccess} iteration(s)</small>
-                      </div>
-                    )}
+                    {showPerformanceDetails && <p className="compact-description">{item.description}</p>}
                     {renderTrackerInput(selectedPerformanceOccurrence, item)}
                   </article>
                 ))}
@@ -1431,20 +1245,9 @@ function App() {
             </article>
 
             <article className="stack">
-              <article className="panel">
-                <span className="eyebrow">Actions</span>
-                <h3>Iteration, bilan, sync</h3>
-                <div className="action-stack">
-                  <button type="button" onClick={() => createNewOccurrence('performances', 'standard')}>Nouvelle iteration</button>
-                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'review')}>Nouveau bilan</button>
-                  <button type="button" className="ghost-button" onClick={() => recalcModule('performances')}>Recalcul global</button>
-                </div>
-              </article>
-
-              <article className="panel">
-                <span className="eyebrow">Nouvelle performance</span>
-                <h3>Ajouter un axe d'amelioration</h3>
-                <form className="form-grid" onSubmit={addTrackerItem}>
+              <details className="panel compact-panel">
+                <summary>Ajouter une performance</summary>
+                <form className="form-grid compact-form" onSubmit={addTrackerItem}>
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: 'performances' })} placeholder="Nom de la performance" />
                   <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: 'performances' })} placeholder="Consigne ou description" />
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: 'performances' })}>
@@ -1474,29 +1277,38 @@ function App() {
                   )}
                   <button type="submit">Ajouter la performance</button>
                 </form>
-              </article>
+              </details>
             </article>
           </section>
         )}
 
         {view === 'goals' && (
-          <section className="workspace-grid">
+          <section className="workspace-grid compact-grid">
             <article className="panel panel-large">
-              <div className="panel-head panel-head-stack">
+              <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Objectifs</span>
-                  <h3>Horizon, echeance, rappel, resultat</h3>
+                  <h3>Echeances et progression</h3>
                 </div>
-                <div className="toolbar">
+                <details className="settings-menu inline-settings">
+                  <summary aria-label="Reglages objectifs">⚙</summary>
+                  <div className="menu-popover">
+                    <button type="button" className="ghost-button" onClick={() => patchState({ goals: sortGoals(state.goals) })}>Trier</button>
+                    <button type="button" className="ghost-button" onClick={testReminders}>Tester les rappels</button>
+                  </div>
+                </details>
+              </div>
+
+              <div className="toolbar compact-toolbar">
+                <label className="field">
+                  <span>Vue</span>
                   <select value={goalView} onChange={(event) => setGoalView(event.target.value as 'week' | 'month' | 'year' | 'all')}>
                     <option value="all">Tous les objectifs</option>
                     <option value="week">Cette semaine</option>
                     <option value="month">Ce mois</option>
                     <option value="year">Cette annee et +</option>
                   </select>
-                  <button type="button" className="ghost-button" onClick={() => patchState({ goals: sortGoals(state.goals) })}>Trier les objectifs</button>
-                  <button type="button" className="ghost-button" onClick={testReminders}>Tester les rappels</button>
-                </div>
+                </label>
               </div>
 
               <div className="goal-list">
@@ -1508,21 +1320,12 @@ function App() {
                         <div className="tracker-meta">
                           <span className={`pill priority-${goal.priority}`}>{priorityLabel(goal.priority)}</span>
                           <span className={`pill state-${goalState(goal)}`}>{entryLabel(goalState(goal))}</span>
-                          <span className={`ghost-pill horizon-chip horizon-${goal.horizon}`}>{horizonLabel(goal.horizon)}</span>
-                          <span className={`ghost-pill urgency-pill urgency-${goalUrgency(goal).tone}`}>{goalUrgency(goal).label}</span>
+                          <span className="ghost-pill">{periodLabel(goal)}</span>
                         </div>
                       </div>
-                      <div className="goal-due">
-                        <span>{periodLabel(goal)}</span>
-                        <small>{goal.dueDate}</small>
-                      </div>
+                      <small>{goal.dueDate}</small>
                     </div>
-
-                    <p>{goal.description}</p>
-                    <div className="goal-progress">
-                      <strong>Progression</strong>
-                      <span>{goalProgressLabel(goal)}</span>
-                    </div>
+                    <p className="compact-description">{goal.description}</p>
                     {renderGoalInput(goal)}
                     <label className="toggle">
                       <input type="checkbox" checked={goal.reminder} onChange={(event) => updateGoal(goal.id, { reminder: event.target.checked })} />
@@ -1534,10 +1337,9 @@ function App() {
             </article>
 
             <article className="stack">
-              <article className="panel">
-                <span className="eyebrow">Nouvel objectif</span>
-                <h3>Ajouter un horizon</h3>
-                <form className="form-grid" onSubmit={addGoal}>
+              <details className="panel compact-panel">
+                <summary>Ajouter un objectif</summary>
+                <form className="form-grid compact-form" onSubmit={addGoal}>
                   <input required value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} placeholder="Nom de l'objectif" />
                   <textarea value={goalDraft.description} onChange={(event) => setGoalDraft({ ...goalDraft, description: event.target.value })} placeholder="Description" />
                   <select value={goalDraft.horizon} onChange={(event) => setGoalDraft({ ...goalDraft, horizon: event.target.value as GoalHorizon })}>
@@ -1574,11 +1376,10 @@ function App() {
                   )}
                   <button type="submit">Ajouter l'objectif</button>
                 </form>
-              </article>
+              </details>
 
-              <article className="panel">
+              <article className="panel compact-panel">
                 <span className="eyebrow">Preview rappels</span>
-                <h3>Simulation</h3>
                 <div className="activity-list">
                   {reminderPreview.length > 0 ? reminderPreview.map((line) => (
                     <div key={line} className="activity-item">
@@ -1587,7 +1388,7 @@ function App() {
                   )) : (
                     <div className="activity-item">
                       <strong>Aucune simulation lancee</strong>
-                      <p>Utilise “Tester les rappels” pour previsualiser le rappel quotidien.</p>
+                      <p>Utilise la roue dentee pour tester les rappels.</p>
                     </div>
                   )}
                 </div>
