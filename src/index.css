@@ -1,0 +1,27 @@
+:root {
+  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #172033;
+  background: #f5f1e8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
