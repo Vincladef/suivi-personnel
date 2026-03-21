@@ -1823,21 +1823,21 @@ function App() {
                       )}
                     </>
                   )}
-                  <label className="field">
-                    <span>{modalView === 'habits' ? 'Jours de repos automatiques' : 'Iterations de repos automatiques'}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={trackerDraft.restAfterSuccess}
-                      onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
-                      placeholder={modalView === 'habits' ? 'Nombre de jours' : 'Nombre d iterations'}
-                    />
-                    <small className="muted-inline">
-                      {modalView === 'habits'
-                        ? 'Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.'
-                        : 'Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre d iterations.'}
-                    </small>
-                  </label>
+                  {modalView === 'habits' && (
+                    <label className="field">
+                      <span>Jours de repos automatiques</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={trackerDraft.restAfterSuccess}
+                        onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
+                        placeholder="Nombre de jours"
+                      />
+                      <small className="muted-inline">
+                        Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.
+                      </small>
+                    </label>
+                  )}
                   {trackerDraft.inputKind === 'checklist' && renderChecklistDraftEditor(
                     'tracker-draft',
                     trackerDraft.checklistItems,
