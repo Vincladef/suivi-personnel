@@ -1617,14 +1617,6 @@ function App() {
           <section className="panel surface-panel">
             <div className="surface-head">
               <div className="surface-actions">
-                <label className="field field-select">
-                  <span>Iteration</span>
-                  <select value={performanceOccurrenceId} onChange={(event) => setPerformanceOccurrenceId(event.target.value)}>
-                    {performanceOccurrences.map((occurrence) => (
-                      <option key={occurrence.id} value={occurrence.id}>{occurrence.label}</option>
-                    ))}
-                  </select>
-                </label>
                 <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Nouvelle iteration</button>
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
