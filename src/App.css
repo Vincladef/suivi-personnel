@@ -559,6 +559,9 @@ small,
 
 .modal-card {
   width: min(620px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 32px;
 }
 
@@ -746,6 +749,80 @@ small,
   gap: 0.75rem;
 }
 
+.draft-chip-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.drag-handle {
+  color: #7a8697;
+  letter-spacing: -0.12em;
+  cursor: grab;
+}
+
+.compact-action {
+  padding: 0.5rem 0.72rem;
+  min-height: 36px;
+  font-size: 0.8rem;
+}
+
+.compact-action.active,
+.check-toggle.active {
+  background: linear-gradient(135deg, rgba(231, 209, 179, 0.9), rgba(108, 126, 159, 0.16));
+  color: #28407d;
+}
+
+.checklist-response-list {
+  gap: 0.65rem;
+}
+
+.check-item-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 18px;
+  background: rgba(29, 36, 48, 0.04);
+  border: 1px solid rgba(29, 36, 48, 0.08);
+}
+
+.check-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(29, 36, 48, 0.06);
+  color: #304056;
+  font-size: 1rem;
+}
+
+.check-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.check-item-copy span {
+  font-weight: 600;
+  color: #1f2f46;
+}
+
+.check-item-copy small {
+  color: #697486;
+}
+
+.check-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 .subitem-head {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -794,6 +871,16 @@ small,
   .history-chip {
     flex-basis: 140px;
     min-width: 140px;
+  }
+
+  .check-item-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .check-item-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 2.95rem;
   }
 
   .tracker-open {
