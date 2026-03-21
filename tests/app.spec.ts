@@ -23,3 +23,14 @@ test('can add a goal and preview reminders', async ({ page }) => {
   await page.getByRole('button', { name: 'Tester les rappels' }).click()
   await expect(page.getByText('Semaine · Boucler la spec produit', { exact: false })).toBeVisible()
 })
+
+
+test('can prepare the daily action queue from the overview', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Preparer ma journee' }).click()
+
+  await expect(page.getByRole('heading', { level: 3, name: 'File active' })).toBeVisible()
+  await expect(page.getByText('Habitude prioritaire ·', { exact: false })).toBeVisible()
+  await expect(page.getByText('Objectif echeance dans 2 jour(s) · Reprendre un rythme de sport stable', { exact: false })).toBeVisible()
+})

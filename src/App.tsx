@@ -574,6 +574,49 @@ function periodLabel(goal: Goal) {
   return String(date.getFullYear())
 }
 
+function daysUntil(target: string) {
+  return daysBetween(today, target)
+}
+
+function goalUrgency(goal: Goal) {
+  const delta = daysUntil(goal.dueDate)
+
+  if (delta < 0) {
+    return { tone: 'overdue', label: `En retard de ${Math.abs(delta)} jour(s)` }
+  }
+
+  if (delta === 0) {
+    return { tone: 'today', label: "A traiter aujourd'hui" }
+  }
+
+  if (delta <= 3) {
+    return { tone: 'soon', label: `Echeance dans ${delta} jour(s)` }
+  }
+
+  return { tone: 'scheduled', label: `Planifie dans ${delta} jour(s)` }
+}
+
+function goalProgressLabel(goal: Goal) {
+  if (goal.resultKind === 'checklist') {
+    const done = goal.checklist.filter(Boolean).length
+    return `${done}/${goal.checklist.length} jalons`
+  }
+
+  if (goal.resultKind === 'score') {
+    return `${goal.score ?? 0}/4`
+  }
+
+  if (goal.resultKind === 'numeric') {
+    return goal.numericValue != null ? `${goal.numericValue} ${goal.target?.unit ?? ''}`.trim() : 'Non renseigne'
+  }
+
+  if (goal.resultKind === 'note') {
+    return goal.note.trim() ? 'Note renseignee' : 'Note vide'
+  }
+
+  return entryLabel(goal.status)
+}
+
 function parseChecklist(text: string) {
   return text.split(',').map((item) => item.trim()).filter(Boolean)
 }
@@ -667,12 +710,37 @@ function App() {
     : []
 
   const dueTodayGoals = sortedGoals.filter((goal) => goal.reminder && goal.dueDate === today)
+  const overdueGoals = sortedGoals.filter((goal) => goal.reminder && daysUntil(goal.dueDate) < 0)
+  const dueSoonGoals = sortedGoals.filter((goal) => goal.reminder && daysUntil(goal.dueDate) >= 0 && daysUntil(goal.dueDate) <= 3)
+  const completedGoals = sortedGoals.filter((goal) => goalState(goal) === 'success').length
+  const completionRatio = sortedGoals.length > 0 ? Math.round((completedGoals / sortedGoals.length) * 100) : 0
+
+  const actionQueue = [
+    ...activeHabitsToday
+      .filter((item) => item.priority === 'high')
+      .slice(0, 3)
+      .map((item) => `Habitude prioritaire · ${item.title}`),
+    ...activePerformancesNow
+      .filter((item) => item.priority === 'high')
+      .slice(0, 3)
+      .map((item) => `Performance cle · ${item.title}`),
+    ...sortGoals(
+      sortedGoals.filter((goal) => {
+        const urgency = daysUntil(goal.dueDate)
+        return goal.priority === 'high' && urgency <= 3
+      }),
+    )
+      .slice(0, 4)
+      .map((goal) => `Objectif ${goalUrgency(goal).label.toLowerCase()} · ${goal.title}`),
+  ]
 
   const overviewMetrics = [
     { label: 'Habitudes actives', value: String(activeHabitsToday.length), hint: `${restingHabitsToday.length} en repos` },
     { label: 'Performances actives', value: String(activePerformancesNow.length), hint: `${performanceItems.length} suivis total` },
     { label: 'Objectifs prioritaires', value: String(sortedGoals.filter((goal) => goal.priority === 'high').length), hint: `${dueTodayGoals.length} rappels aujourd'hui` },
     { label: 'Bilans disponibles', value: String(state.occurrences.filter((occurrence) => occurrence.kind === 'review').length), hint: 'moments de synthese distincts' },
+    { label: 'Objectifs completes', value: `${completionRatio}%`, hint: `${completedGoals}/${sortedGoals.length} boucles` },
+    { label: 'Alertes echeance', value: String(overdueGoals.length + dueSoonGoals.length), hint: `${overdueGoals.length} retard · ${dueSoonGoals.length} a anticiper` },
   ]
 
   function patchState(patch: Partial<AppState>) {
@@ -834,6 +902,15 @@ function App() {
         : ['Aucun objectif a echeance aujourd hui.'],
     )
     setAdminMessage('Test rappels execute.')
+  }
+
+  function prepareDay() {
+    setReminderPreview(
+      actionQueue.length > 0
+        ? actionQueue
+        : ['File active vide. Le systeme est a jour pour le moment.'],
+    )
+    setAdminMessage('File active preparee.')
   }
 
   function exportJson() {
@@ -1098,22 +1175,53 @@ function App() {
               </article>
 
               <article className="panel">
-                <span className="eyebrow">Rappels</span>
-                <h3>Aujourd hui</h3>
+                <span className="eyebrow">Centre de pilotage</span>
+                <h3>File active</h3>
+                <div className="action-stack">
+                  <button type="button" onClick={prepareDay}>Preparer ma journee</button>
+                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'standard')}>Ouvrir un nouveau jour</button>
+                  <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Ouvrir une iteration</button>
+                </div>
                 <div className="activity-list">
-                  {dueTodayGoals.length > 0 ? dueTodayGoals.map((goal) => (
-                    <div key={goal.id} className="activity-item">
-                      <strong>{goal.title}</strong>
-                      <p>{horizonLabel(goal.horizon)} · {periodLabel(goal)}</p>
+                  {actionQueue.length > 0 ? actionQueue.map((line) => (
+                    <div key={line} className="activity-item">
+                      <strong>{line}</strong>
                     </div>
                   )) : (
                     <div className="activity-item">
-                      <strong>Pas de rappel critique</strong>
-                      <p>Aucun objectif avec rappel n arrive a echeance aujourd hui.</p>
+                      <strong>Aucune action urgente</strong>
+                      <p>Les elements critiques ont deja ete traites ou n ont pas encore d echeance proche.</p>
                     </div>
                   )}
                 </div>
               </article>
+            </section>
+
+            <section className="board-grid">
+              <article className="panel panel-large">
+                <span className="eyebrow">Rappels</span>
+                <h3>Echeances et rappels</h3>
+                <div className="activity-list">
+                  {overdueGoals.length > 0 ? overdueGoals.map((goal) => (
+                    <div key={goal.id} className="activity-item urgency-overdue">
+                      <strong>{goal.title}</strong>
+                      <p>{goalUrgency(goal).label} · {periodLabel(goal)}</p>
+                    </div>
+                  )) : null}
+                  {dueSoonGoals.length > 0 ? dueSoonGoals.map((goal) => (
+                    <div key={goal.id} className="activity-item">
+                      <strong>{goal.title}</strong>
+                      <p>{goalUrgency(goal).label} · {periodLabel(goal)}</p>
+                    </div>
+                  )) : (
+                    overdueGoals.length === 0 && <div className="activity-item">
+                      <strong>Pas de rappel critique</strong>
+                      <p>Aucun objectif avec rappel n arrive a echeance dans les 3 prochains jours.</p>
+                    </div>
+                  )}
+                </div>
+              </article>
+
             </section>
 
             <section className="board-grid">
@@ -1401,6 +1509,7 @@ function App() {
                           <span className={`pill priority-${goal.priority}`}>{priorityLabel(goal.priority)}</span>
                           <span className={`pill state-${goalState(goal)}`}>{entryLabel(goalState(goal))}</span>
                           <span className={`ghost-pill horizon-chip horizon-${goal.horizon}`}>{horizonLabel(goal.horizon)}</span>
+                          <span className={`ghost-pill urgency-pill urgency-${goalUrgency(goal).tone}`}>{goalUrgency(goal).label}</span>
                         </div>
                       </div>
                       <div className="goal-due">
@@ -1410,6 +1519,10 @@ function App() {
                     </div>
 
                     <p>{goal.description}</p>
+                    <div className="goal-progress">
+                      <strong>Progression</strong>
+                      <span>{goalProgressLabel(goal)}</span>
+                    </div>
                     {renderGoalInput(goal)}
                     <label className="toggle">
                       <input type="checkbox" checked={goal.reminder} onChange={(event) => updateGoal(goal.id, { reminder: event.target.checked })} />
