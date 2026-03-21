@@ -550,7 +550,7 @@ function HistoryCarousel({
     <div className="history-carousel">
       <button
         type="button"
-        className={`history-nav ${canScrollPrevious ? '' : 'is-hidden'}`}
+        className={`history-nav history-nav-previous ${canScrollPrevious ? '' : 'is-hidden'}`}
         aria-label="Historique precedent"
         aria-hidden={!canScrollPrevious}
         tabIndex={canScrollPrevious ? 0 : -1}
@@ -572,7 +572,7 @@ function HistoryCarousel({
       </div>
       <button
         type="button"
-        className={`history-nav ${canScrollNext ? '' : 'is-hidden'}`}
+        className={`history-nav history-nav-next ${canScrollNext ? '' : 'is-hidden'}`}
         aria-label="Historique suivant"
         aria-hidden={!canScrollNext}
         tabIndex={canScrollNext ? 0 : -1}
@@ -730,11 +730,20 @@ function App() {
         const current = occurrence.entries[item.id]
         if (!current) return occurrence
 
-        const checklist = item.inputKind === 'checklist'
-          ? item.checklistTemplate.map((_, index) => current.checklist[index] ?? false)
-          : current.checklist
+        const nextEntry: TrackerEntry = {
+          state: current.state === 'rest' || current.state === 'inactive' ? current.state : 'unknown',
+          score: item.inputKind === 'score' ? current.score : null,
+          checklist: item.inputKind === 'checklist'
+            ? item.checklistTemplate.map((_, index) => current.checklist[index] ?? false)
+            : [],
+          numericValue: item.inputKind === 'numeric' ? current.numericValue : null,
+          note: item.inputKind === 'note' ? current.note : '',
+        }
 
-        const nextEntry = { ...current, checklist }
+        if (item.inputKind === 'tristate' && (current.state === 'success' || current.state === 'excused' || current.state === 'unknown')) {
+          nextEntry.state = current.state
+        }
+
         nextEntry.state = deriveState(item, nextEntry)
 
         return {
@@ -1061,7 +1070,7 @@ function App() {
             <div className="surface-head">
               <div className="date-nav-controls">
                 <button type="button" className="date-arrow" onClick={() => stepHabitDate('previous')} aria-label="Jour precedent">‹</button>
-                <strong>{selectedHabitDateLabel}</strong>
+                <strong className="date-nav-label">{selectedHabitDateLabel}</strong>
                 <button type="button" className="date-arrow" onClick={() => stepHabitDate('next')} aria-label="Jour suivant">›</button>
               </div>
               {habitItems.length > 0 && <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>}
@@ -1101,7 +1110,7 @@ function App() {
                         ⋮
                       </button>
                       {trackerMenuId === item.id && (
-                        <div className="tracker-menu">
+                        <div className="tracker-menu" role="menu" aria-label={`Actions ${item.title}`}>
                           <button type="button" onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}>Repondre</button>
                           <button type="button" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
                         </div>
@@ -1180,7 +1189,7 @@ function App() {
                         ⋮
                       </button>
                       {trackerMenuId === item.id && (
-                        <div className="tracker-menu">
+                        <div className="tracker-menu" role="menu" aria-label={`Actions ${item.title}`}>
                           <button type="button" disabled={!selectedPerformanceOccurrence} onClick={() => selectedPerformanceOccurrence && openTrackerEditor('performances', item.id, selectedPerformanceOccurrence.id)}>Repondre</button>
                           <button type="button" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
                         </div>
@@ -1301,7 +1310,7 @@ function App() {
                 <form className="form-grid compact-form" onSubmit={saveTrackerItem}>
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: modalView })} placeholder="Titre" />
                   <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: modalView })} placeholder="Description" />
-                  <select value={trackerDraft.inputKind} disabled={editingTrackerId != null} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
+                  <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
                     <option value="tristate">Validation simple</option>
                     <option value="score">Score 0-4</option>
                     <option value="checklist">Checklist</option>
