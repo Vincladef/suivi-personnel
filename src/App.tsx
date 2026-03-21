@@ -246,6 +246,10 @@ function daysBetween(start: string, end: string) {
   return Math.round((b - a) / 86400000)
 }
 
+function shiftDate(date: string, delta: number) {
+  return new Date(new Date(`${date}T00:00:00`).getTime() + delta * 86400000).toISOString().slice(0, 10)
+}
+
 function formatLongDate(date: string | null | undefined) {
   if (!date) {
     return 'Aucun jour'
@@ -419,6 +423,72 @@ function sortGoals(goals: Goal[]) {
   })
 }
 
+function buildHabitOccurrenceForDate(
+  date: string,
+  items: TrackerItem[],
+  occurrences: TrackerOccurrence[],
+  source?: TrackerOccurrence,
+): TrackerOccurrence {
+  const key = Math.floor(new Date(`${date}T00:00:00`).getTime() / 86400000)
+  const baseEntries = Object.fromEntries(
+    items
+      .filter((item) => item.module === 'habits')
+      .map((item) => {
+        const base = emptyEntry(item)
+        const lastSuccess = latestSuccessDate(item.id, occurrences)
+        const inRest = lastSuccess
+          ? item.restAfterSuccess > 0 && daysBetween(lastSuccess, date) > 0 && daysBetween(lastSuccess, date) <= item.restAfterSuccess
+          : false
+        if (!isHabitActive(item, date)) {
+          return [item.id, { ...base, state: 'inactive' as EntryState }]
+        }
+        if (inRest) {
+          return [item.id, { ...base, state: 'rest' as EntryState }]
+        }
+        return [item.id, base]
+      }),
+  )
+
+  const entries = source
+    ? Object.fromEntries(
+        Object.entries(baseEntries).map(([itemId, baseEntry]) => {
+          const currentEntry = source.entries[itemId]
+          if (!currentEntry) {
+            return [itemId, baseEntry]
+          }
+
+          if (baseEntry.state === 'rest' || baseEntry.state === 'inactive') {
+            return [itemId, { ...currentEntry, state: baseEntry.state }]
+          }
+
+          const item = items.find((candidate) => candidate.id === itemId)!
+          const merged = { ...currentEntry, state: deriveState(item, currentEntry) }
+          return [itemId, merged]
+        }),
+      )
+    : baseEntries
+
+  return {
+    id: source?.id ?? `preview-${date}`,
+    module: 'habits',
+    kind: 'standard',
+    label: formatLongDate(date),
+    key,
+    date,
+    createdAt: source?.createdAt ?? new Date().toISOString(),
+    entries,
+  }
+}
+
+function createHabitOccurrenceForDate(date: string, items: TrackerItem[], occurrences: TrackerOccurrence[]) {
+  const preview = buildHabitOccurrenceForDate(date, items, occurrences)
+  return {
+    ...preview,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  }
+}
+
 function App() {
   const [view, setView] = useState<ViewKey>('habits')
   const [state, setState] = useState<AppState>(() => loadState())
@@ -428,7 +498,7 @@ function App() {
   const [showHabitDetails, setShowHabitDetails] = useState(false)
   const [showPerformanceDetails, setShowPerformanceDetails] = useState(false)
   const [hideRestingPerformances, setHideRestingPerformances] = useState(true)
-  const [habitOccurrenceId, setHabitOccurrenceId] = useState('')
+  const [selectedHabitDate, setSelectedHabitDate] = useState(today)
   const [performanceOccurrenceId, setPerformanceOccurrenceId] = useState('')
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(defaultGoalDraft())
@@ -451,21 +521,17 @@ function App() {
     .sort((left, right) => right.key - left.key)
 
   useEffect(() => {
-    if (!habitOccurrenceId && habitOccurrences[0]) {
-      setHabitOccurrenceId(habitOccurrences[0].id)
-    }
     if (!performanceOccurrenceId && performanceOccurrences[0]) {
       setPerformanceOccurrenceId(performanceOccurrences[0].id)
     }
-  }, [habitOccurrences, performanceOccurrences, habitOccurrenceId, performanceOccurrenceId])
+  }, [performanceOccurrences, performanceOccurrenceId])
 
-  const selectedHabitOccurrence = habitOccurrences.find((occurrence) => occurrence.id === habitOccurrenceId) ?? habitOccurrences[0]
+  const selectedHabitOccurrence = habitOccurrences.find((occurrence) => occurrence.date === selectedHabitDate)
+  const resolvedHabitOccurrence = buildHabitOccurrenceForDate(selectedHabitDate, state.trackerItems, state.occurrences, selectedHabitOccurrence)
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
-  const selectedHabitDate = selectedHabitOccurrence?.date ?? habitOccurrences[0]?.date ?? today
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
-  const selectedHabitIndex = selectedHabitOccurrence ? habitOccurrences.findIndex((occurrence) => occurrence.id === selectedHabitOccurrence.id) : -1
-  const previousHabitOccurrence = selectedHabitIndex >= 0 ? habitOccurrences[selectedHabitIndex + 1] : undefined
-  const nextHabitOccurrence = selectedHabitIndex > 0 ? habitOccurrences[selectedHabitIndex - 1] : undefined
+  const previousHabitDate = shiftDate(selectedHabitDate, -1)
+  const nextHabitDate = shiftDate(selectedHabitDate, 1)
 
   const sortedGoals = sortGoals(state.goals)
   const visibleGoals = sortedGoals.filter((goal) => {
@@ -525,9 +591,6 @@ function App() {
   function createNewOccurrence(module: ModuleKey, kind: OccurrenceKind) {
     const occurrence = createOccurrence(module, kind, state.trackerItems, state.occurrences)
     patchState({ occurrences: [...state.occurrences, occurrence] })
-    if (module === 'habits' && kind === 'standard') {
-      setHabitOccurrenceId(occurrence.id)
-    }
     if (module === 'performances') {
       setPerformanceOccurrenceId(occurrence.id)
     }
@@ -535,13 +598,33 @@ function App() {
   }
 
   function updateTrackerEntry(occurrenceId: string, itemId: string, patch: Partial<TrackerEntry>) {
+    const item = state.trackerItems.find((candidate) => candidate.id === itemId)!
+    const existingOccurrence = state.occurrences.find((occurrence) => occurrence.id === occurrenceId)
+
+    if (!existingOccurrence && item.module === 'habits') {
+      const createdOccurrence = createHabitOccurrenceForDate(selectedHabitDate, state.trackerItems, state.occurrences)
+      const current = createdOccurrence.entries[itemId]
+      const next = { ...current, ...patch }
+      next.state = deriveState(item, next)
+
+      patchState({
+        occurrences: [...state.occurrences, {
+          ...createdOccurrence,
+          entries: {
+            ...createdOccurrence.entries,
+            [itemId]: next,
+          },
+        }],
+      })
+      return
+    }
+
     patchState({
       occurrences: state.occurrences.map((occurrence) => {
         if (occurrence.id !== occurrenceId) {
           return occurrence
         }
 
-        const item = state.trackerItems.find((candidate) => candidate.id === itemId)!
         const current = occurrence.entries[itemId]
         const next = { ...current, ...patch }
         next.state = deriveState(item, next)
@@ -670,10 +753,7 @@ function App() {
   }
 
   function stepHabitDate(direction: 'previous' | 'next') {
-    const target = direction === 'previous' ? previousHabitOccurrence : nextHabitOccurrence
-    if (target) {
-      setHabitOccurrenceId(target.id)
-    }
+    setSelectedHabitDate(direction === 'previous' ? previousHabitDate : nextHabitDate)
   }
 
   function habitHistory(itemId: string) {
@@ -883,12 +963,11 @@ function App() {
               <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Habitudes</span>
-                  <h3>{selectedHabitOccurrence ? selectedHabitOccurrence.label : 'Aucun jour cree pour le moment'}</h3>
+                  <h3>{selectedHabitDateLabel}</h3>
                 </div>
                 <details className="settings-menu inline-settings">
                   <summary aria-label="Reglages habitudes">⚙</summary>
                   <div className="menu-popover">
-                    <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'standard')}>Nouveau jour</button>
                     <button type="button" className="ghost-button" onClick={() => createNewOccurrence('habits', 'review')}>Nouveau bilan</button>
                     <button type="button" className="ghost-button" onClick={() => recalcModule('habits')}>Recalcul global</button>
                   </div>
@@ -899,9 +978,9 @@ function App() {
                 <div className="date-nav">
                   <span>Jour</span>
                   <div className="date-nav-controls">
-                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('previous')} disabled={!previousHabitOccurrence} aria-label="Jour precedent">‹</button>
+                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('previous')} aria-label="Jour precedent">‹</button>
                     <strong>{selectedHabitDateLabel}</strong>
-                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('next')} disabled={!nextHabitOccurrence} aria-label="Jour suivant">›</button>
+                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('next')} aria-label="Jour suivant">›</button>
                   </div>
                 </div>
                 <label className="field">
@@ -929,7 +1008,7 @@ function App() {
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
                           <span className={`pill priority-${item.priority}`}>{priorityLabel(item.priority)}</span>
-                          <span className={`pill state-${selectedHabitOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedHabitOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
+                          <span className={`pill state-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
                         </div>
                       </div>
                     </div>
@@ -943,8 +1022,8 @@ function App() {
                           <button
                             key={`${item.id}-${history.occurrenceId}`}
                             type="button"
-                            className={`history-chip state-${history.state} ${history.occurrenceId === selectedHabitOccurrence?.id ? 'active' : ''}`}
-                            onClick={() => setHabitOccurrenceId(history.occurrenceId)}
+                            className={`history-chip state-${history.state} ${history.date === selectedHabitDate ? 'active' : ''}`}
+                            onClick={() => setSelectedHabitDate(history.date)}
                           >
                             <span>{history.date.slice(5)}</span>
                             <strong>{entryLabel(history.state)}</strong>
@@ -953,7 +1032,7 @@ function App() {
                       </div>
                     </div>
 
-                    {selectedHabitOccurrence ? renderTrackerInput(selectedHabitOccurrence, item) : <p className="muted-inline">Cree d abord un jour pour commencer le suivi.</p>}
+                    {renderTrackerInput(resolvedHabitOccurrence, item)}
                   </article>
                 ))}
               </div>

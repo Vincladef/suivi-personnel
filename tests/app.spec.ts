@@ -14,7 +14,7 @@ test('starts empty in habits mode without seeded data', async ({ page }) => {
   await expect(page.getByText('0 habitudes · 0 performances · 0 objectifs')).toBeVisible()
 })
 
-test('can add a personal habit and start the first day', async ({ page }) => {
+test('can add a personal habit and track it on the current day without creating a day', async ({ page }) => {
   await page.locator('summary').filter({ hasText: 'Ajouter une habitude' }).click()
 
   await page.getByPlaceholder("Nom de l'habitude").fill('Sport')
@@ -22,9 +22,9 @@ test('can add a personal habit and start the first day', async ({ page }) => {
   await page.getByRole('button', { name: "Ajouter l'habitude" }).click()
 
   await expect(page.getByText('Sport', { exact: true })).toBeVisible()
-  await page.getByLabel('Reglages habitudes').click()
-  await page.getByRole('button', { name: 'Nouveau jour' }).click()
-  await expect(page.getByRole('button', { name: /-21 A remplir/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /samedi 21 mars 2026/i })).toBeVisible()
+  await page.getByRole('button', { name: 'Valide' }).click()
+  await expect(page.locator('.pill.state-success').filter({ hasText: 'Reussi' }).first()).toBeVisible()
 })
 
 test('can add a goal from the empty state and preview reminders', async ({ page }) => {
