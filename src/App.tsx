@@ -1193,7 +1193,7 @@ function App() {
                 {(value === 'done' || value === 'excused') && <small>{value === 'done' ? 'Fait' : 'Excuse'}</small>}
               </div>
               <div className="check-item-actions">
-                <button type="button" className={`ghost-button compact-action ${value === 'excused' ? 'active' : ''}`} onClick={() => setValue(value === 'excused' ? 'unknown' : 'excused')}>Passe</button>
+                <button type="button" className={`ghost-button compact-action compact-icon-action ${value === 'excused' ? 'active' : ''}`} aria-label={`Marquer ${label} comme excuse`} title="Marquer comme excuse" onClick={() => setValue(value === 'excused' ? 'unknown' : 'excused')}>⏭</button>
               </div>
             </div>
           )

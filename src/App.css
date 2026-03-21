@@ -768,6 +768,12 @@ small,
   font-size: 0.8rem;
 }
 
+.compact-icon-action {
+  min-width: 40px;
+  padding-inline: 0;
+  font-size: 1rem;
+}
+
 .compact-action.active,
 .check-toggle.active {
   background: linear-gradient(135deg, rgba(231, 209, 179, 0.9), rgba(108, 126, 159, 0.16));
