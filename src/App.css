@@ -251,7 +251,7 @@ textarea {
 .goal-list {
   width: 100%;
   height: 100%;
-  gap: 1rem;
+  gap: 0.9rem;
   align-content: start;
 }
 
@@ -290,9 +290,10 @@ small,
 }
 
 .date-nav-controls strong {
-  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.28rem);
+  font-size: clamp(1.06rem, 0.95rem + 0.5vw, 1.3rem);
   color: #1f2f46;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  font-weight: 700;
 }
 
 .date-arrow,
@@ -343,9 +344,10 @@ small,
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 0.38rem 0.72rem;
-  font-size: 0.78rem;
+  padding: 0.34rem 0.68rem;
+  font-size: 0.76rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .ghost-pill {
@@ -401,7 +403,8 @@ small,
 }
 
 .compact-description {
-  max-width: 58ch;
+  max-width: 56ch;
+  font-size: 0.95rem;
   line-height: 1.55;
 }
 
@@ -435,13 +438,22 @@ small,
 
 .tracker-card,
 .goal-card {
-  min-height: 190px;
+  min-height: 0;
+  gap: 0.75rem;
 }
 
 .history-chip {
-  min-height: 58px;
+  min-height: 52px;
   display: flex;
   align-items: center;
+  padding: 0.58rem 0.72rem;
+}
+
+.goal-head small {
+  max-width: 18ch;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .empty-panel {
@@ -465,7 +477,7 @@ small,
 }
 
 .history-strip {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .history-chip {
@@ -522,7 +534,8 @@ small,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17, 23, 32, 0.42);
+  background: rgba(17, 23, 32, 0.38);
+  backdrop-filter: blur(10px);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -530,7 +543,22 @@ small,
 }
 
 .modal-card {
-  width: min(560px, 100%);
+  width: min(620px, 100%);
+  border-radius: 32px;
+}
+
+.modal-head h3 {
+  font-size: 1.18rem;
+  letter-spacing: -0.02em;
+}
+
+.compact-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.compact-form button[type='submit'] {
+  margin-top: 0.15rem;
 }
 
 .form-grid {
