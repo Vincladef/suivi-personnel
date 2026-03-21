@@ -1,28 +1,36 @@
 import { expect, test } from '@playwright/test'
 
-test('renders the tracking application in compact habits mode', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.goto('/')
+  await page.evaluate(() => localStorage.clear())
+  await page.goto('/')
+})
 
+test('starts empty in habits mode without seeded data', async ({ page }) => {
   await expect(page).toHaveTitle('Suivi personnel')
-  await expect(page.getByRole('heading', { level: 1, name: 'Application de suivi' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Habitudes', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Performances', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Objectifs', exact: true })).toBeVisible()
+  await expect(page.getByText('Application de suivi', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Overview' })).toHaveCount(0)
+  await expect(page.getByText('Aucune habitude pour le moment')).toBeVisible()
+  await expect(page.getByText('0 habitudes · 0 performances · 0 objectifs')).toBeVisible()
 })
 
-test('can select a habit day and inspect history chips', async ({ page }) => {
-  await page.goto('/')
+test('can add a personal habit and start the first day', async ({ page }) => {
+  await page.locator('summary').filter({ hasText: 'Ajouter une habitude' }).click()
 
-  await page.getByLabel('Jour').fill('2026-03-21')
-  await expect(page.getByText('Historique').first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /03-21/i }).first()).toBeVisible()
+  await page.getByPlaceholder("Nom de l'habitude").fill('Sport')
+  await page.getByPlaceholder('Consigne ou description').fill('30 minutes de mouvement volontaire.')
+  await page.getByRole('button', { name: "Ajouter l'habitude" }).click()
+
+  await expect(page.getByText('Sport', { exact: true })).toBeVisible()
+  await page.getByLabel('Reglages habitudes').click()
+  await page.getByRole('button', { name: 'Nouveau jour' }).click()
+  await expect(page.getByRole('button', { name: /-21 A remplir/i })).toBeVisible()
 })
 
-test('can add a goal and preview reminders from the compact UI', async ({ page }) => {
-  await page.goto('/')
+test('can add a goal from the empty state and preview reminders', async ({ page }) => {
   await page.getByRole('button', { name: 'Objectifs', exact: true }).click()
-  await page.getByText('Ajouter un objectif').click()
+  await expect(page.getByText('Aucun objectif pour le moment')).toBeVisible()
+  await page.locator('summary').filter({ hasText: 'Ajouter un objectif' }).click()
 
   await page.getByPlaceholder("Nom de l'objectif").fill('Boucler la spec produit')
   await page.getByPlaceholder('Description').fill('Objectif ajoute depuis le test E2E.')

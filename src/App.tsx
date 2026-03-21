@@ -134,187 +134,9 @@ const defaultGoalDraft = (): GoalDraft => ({
   targetUnit: '',
 })
 
-const seedTrackerItems: TrackerItem[] = [
-  {
-    id: 'habit-mobility',
-    module: 'habits',
-    title: 'Mobilite du matin',
-    description: '10 minutes de mobilisation articulaire pour lancer la journee.',
-    inputKind: 'tristate',
-    priority: 'high',
-    checklistTemplate: [],
-    target: null,
-    frequency: { kind: 'weekdays', days: [1, 2, 3, 4, 5] },
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'habit-energy',
-    module: 'habits',
-    title: 'Niveau d energie',
-    description: 'Auto-evaluation rapide de la qualite de la journee sur 5 niveaux.',
-    inputKind: 'score',
-    priority: 'medium',
-    checklistTemplate: [],
-    target: null,
-    frequency: { kind: 'daily', days: [] },
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'habit-routine',
-    module: 'habits',
-    title: 'Routine du soir',
-    description: 'Checklist courte pour fermer proprement la journee.',
-    inputKind: 'checklist',
-    priority: 'high',
-    checklistTemplate: ['Inbox videe', 'Agenda demain verifie', 'Lecture 10 min'],
-    target: null,
-    frequency: { kind: 'daily', days: [] },
-    restAfterSuccess: 1,
-  },
-  {
-    id: 'habit-water',
-    module: 'habits',
-    title: 'Hydratation',
-    description: 'Mesurer les litres bus dans la journee avec une cible minimale.',
-    inputKind: 'numeric',
-    priority: 'medium',
-    checklistTemplate: [],
-    target: { mode: 'atLeast', value: 2, unit: 'L' },
-    frequency: { kind: 'daily', days: [] },
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'habit-journal',
-    module: 'habits',
-    title: 'Journal libre',
-    description: 'Prendre une note libre sur les apprentissages du jour.',
-    inputKind: 'note',
-    priority: 'low',
-    checklistTemplate: [],
-    target: null,
-    frequency: { kind: 'selected', days: [0, 6] },
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'perf-dead-hang',
-    module: 'performances',
-    title: 'Dead hang',
-    description: 'Tenir le plus longtemps possible a la barre.',
-    inputKind: 'numeric',
-    priority: 'high',
-    checklistTemplate: [],
-    target: { mode: 'atLeast', value: 60, unit: 'sec' },
-    frequency: null,
-    restAfterSuccess: 1,
-  },
-  {
-    id: 'perf-breathing',
-    module: 'performances',
-    title: 'Technique de respiration',
-    description: 'Noter la qualite d execution de la session.',
-    inputKind: 'score',
-    priority: 'medium',
-    checklistTemplate: [],
-    target: null,
-    frequency: null,
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'perf-outreach',
-    module: 'performances',
-    title: 'Session outreach',
-    description: 'Checklist de repetition pour une session de prospection propre.',
-    inputKind: 'checklist',
-    priority: 'medium',
-    checklistTemplate: ['Angle choisi', 'Liste nettoyee', 'Relances programmees'],
-    target: null,
-    frequency: null,
-    restAfterSuccess: 0,
-  },
-  {
-    id: 'perf-review',
-    module: 'performances',
-    title: 'Debrief de session',
-    description: 'Note libre sur ce qui a bien / mal fonctionne.',
-    inputKind: 'note',
-    priority: 'low',
-    checklistTemplate: [],
-    target: null,
-    frequency: null,
-    restAfterSuccess: 0,
-  },
-]
+const seedTrackerItems: TrackerItem[] = []
 
-const seedGoals: Goal[] = [
-  {
-    id: 'goal-week',
-    title: 'Reprendre un rythme de sport stable',
-    description: 'Faire 3 sessions cette semaine avec retour au calme propre.',
-    horizon: 'week',
-    dueDate: '2026-03-23',
-    resultKind: 'checklist',
-    priority: 'high',
-    reminder: true,
-    checklistTemplate: ['Session 1', 'Session 2', 'Session 3'],
-    target: null,
-    status: 'unknown',
-    score: null,
-    checklist: [true, false, false],
-    numericValue: null,
-    note: '',
-  },
-  {
-    id: 'goal-month',
-    title: 'Stabiliser les routines du matin',
-    description: 'Avoir un mois propre et repetable sur le lever / mobilite / focus.',
-    horizon: 'month',
-    dueDate: '2026-03-31',
-    resultKind: 'score',
-    priority: 'high',
-    reminder: true,
-    checklistTemplate: [],
-    target: null,
-    status: 'unknown',
-    score: 2,
-    checklist: [],
-    numericValue: null,
-    note: '',
-  },
-  {
-    id: 'goal-quarter',
-    title: 'Atteindre 10 traction strictes',
-    description: 'Objectif trimestriel de progression mesurable.',
-    horizon: 'quarter',
-    dueDate: '2026-06-30',
-    resultKind: 'numeric',
-    priority: 'medium',
-    reminder: false,
-    checklistTemplate: [],
-    target: { mode: 'atLeast', value: 10, unit: 'reps' },
-    status: 'unknown',
-    score: null,
-    checklist: [],
-    numericValue: 6,
-    note: '',
-  },
-  {
-    id: 'goal-life',
-    title: 'Construire un systeme personnel solide',
-    description: 'Avoir un environnement de pilotage simple, durable et utile.',
-    horizon: 'life',
-    dueDate: '2026-12-31',
-    resultKind: 'note',
-    priority: 'low',
-    reminder: false,
-    checklistTemplate: [],
-    target: null,
-    status: 'unknown',
-    score: null,
-    checklist: [],
-    numericValue: null,
-    note: 'Le produit lui-meme devient une partie de cet objectif.',
-  },
-]
+const seedGoals: Goal[] = []
 
 function emptyEntry(item: TrackerItem): TrackerEntry {
   return {
@@ -505,12 +327,7 @@ function createOccurrence(
 }
 
 function seedState(): AppState {
-  const state: AppState = { trackerItems: seedTrackerItems, occurrences: [], goals: seedGoals }
-  state.occurrences.push(createOccurrence('habits', 'standard', state.trackerItems, state.occurrences))
-  state.occurrences.push(createOccurrence('habits', 'review', state.trackerItems, state.occurrences))
-  state.occurrences.push(createOccurrence('performances', 'standard', state.trackerItems, state.occurrences))
-  state.occurrences.push(createOccurrence('performances', 'review', state.trackerItems, state.occurrences))
-  return state
+  return { trackerItems: seedTrackerItems, occurrences: [], goals: seedGoals }
 }
 
 function loadState(): AppState {
@@ -651,12 +468,6 @@ function App() {
     return goal.horizon === 'year' || goal.horizon === 'quarter' || goal.horizon === 'life'
   })
 
-  const activeHabitsToday = selectedHabitOccurrence
-    ? habitItems.filter((item) => selectedHabitOccurrence.entries[item.id]?.state !== 'inactive')
-    : []
-  const activePerformancesNow = selectedPerformanceOccurrence
-    ? performanceItems.filter((item) => selectedPerformanceOccurrence.entries[item.id]?.state !== 'rest')
-    : []
   const dueTodayGoals = sortedGoals.filter((goal) => goal.reminder && goal.dueDate === today)
 
   function patchState(patch: Partial<AppState>) {
@@ -1005,7 +816,7 @@ function App() {
           <div className="brand-mark">DS</div>
           <div>
             <h1>Application de suivi</h1>
-            <p>{activeHabitsToday.length} habitudes · {activePerformancesNow.length} performances · {sortedGoals.length} objectifs</p>
+            <p>{habitItems.length} habitudes · {performanceItems.length} performances · {sortedGoals.length} objectifs</p>
           </div>
         </div>
 
@@ -1053,13 +864,13 @@ function App() {
           </div>
         </section>
 
-        {view === 'habits' && selectedHabitOccurrence && (
+        {view === 'habits' && (
           <section className="workspace-grid compact-grid">
             <article className="panel panel-large">
               <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Habitudes</span>
-                  <h3>{selectedHabitOccurrence.label}</h3>
+                  <h3>{selectedHabitOccurrence ? selectedHabitOccurrence.label : 'Aucun jour cree pour le moment'}</h3>
                 </div>
                 <details className="settings-menu inline-settings">
                   <summary aria-label="Reglages habitudes">⚙</summary>
@@ -1087,6 +898,13 @@ function App() {
               </div>
 
               <div className="tracker-list">
+                {visibleHabitItems.length === 0 && (
+                  <article className="panel empty-panel">
+                    <span className="eyebrow">Habitudes</span>
+                    <h3>Aucune habitude pour le moment</h3>
+                    <p>Tu n as encore rien ajoute. Commence par creer ta premiere consigne personnelle.</p>
+                  </article>
+                )}
                 {visibleHabitItems.map((item) => (
                   <article key={item.id} className="tracker-card compact-card">
                     <div className="tracker-head">
@@ -1094,7 +912,7 @@ function App() {
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
                           <span className={`pill priority-${item.priority}`}>{priorityLabel(item.priority)}</span>
-                          <span className={`pill state-${selectedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
+                          <span className={`pill state-${selectedHabitOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedHabitOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
                         </div>
                       </div>
                     </div>
@@ -1104,21 +922,21 @@ function App() {
                     <div className="history-row">
                       <span className="history-label">Historique</span>
                       <div className="history-strip">
-                        {habitHistory(item.id).map((history) => (
+                        {habitHistory(item.id).length > 0 ? habitHistory(item.id).map((history) => (
                           <button
                             key={`${item.id}-${history.occurrenceId}`}
                             type="button"
-                            className={`history-chip state-${history.state} ${history.occurrenceId === selectedHabitOccurrence.id ? 'active' : ''}`}
+                            className={`history-chip state-${history.state} ${history.occurrenceId === selectedHabitOccurrence?.id ? 'active' : ''}`}
                             onClick={() => setHabitOccurrenceId(history.occurrenceId)}
                           >
                             <span>{history.date.slice(5)}</span>
                             <strong>{entryLabel(history.state)}</strong>
                           </button>
-                        ))}
+                        )) : <span className="muted-inline">Pas encore d historique.</span>}
                       </div>
                     </div>
 
-                    {renderTrackerInput(selectedHabitOccurrence, item)}
+                    {selectedHabitOccurrence ? renderTrackerInput(selectedHabitOccurrence, item) : <p className="muted-inline">Cree d abord un jour pour commencer le suivi.</p>}
                   </article>
                 ))}
               </div>
@@ -1187,13 +1005,13 @@ function App() {
           </section>
         )}
 
-        {view === 'performances' && selectedPerformanceOccurrence && (
+        {view === 'performances' && (
           <section className="workspace-grid compact-grid">
             <article className="panel panel-large">
               <div className="panel-head compact-head">
                 <div>
                   <span className="eyebrow">Performances</span>
-                  <h3>{selectedPerformanceOccurrence.label}</h3>
+                  <h3>{selectedPerformanceOccurrence ? selectedPerformanceOccurrence.label : 'Aucune iteration creee pour le moment'}</h3>
                 </div>
                 <details className="settings-menu inline-settings">
                   <summary aria-label="Reglages performances">⚙</summary>
@@ -1226,6 +1044,13 @@ function App() {
               </div>
 
               <div className="tracker-list">
+                {visiblePerformanceItems.length === 0 && (
+                  <article className="panel empty-panel">
+                    <span className="eyebrow">Performances</span>
+                    <h3>Aucune performance pour le moment</h3>
+                    <p>Ajoute tes propres axes de progression avant de lancer une iteration.</p>
+                  </article>
+                )}
                 {visiblePerformanceItems.map((item) => (
                   <article key={item.id} className="tracker-card compact-card">
                     <div className="tracker-head">
@@ -1233,12 +1058,12 @@ function App() {
                         <strong>{item.title}</strong>
                         <div className="tracker-meta">
                           <span className={`pill priority-${item.priority}`}>{priorityLabel(item.priority)}</span>
-                          <span className={`pill state-${selectedPerformanceOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
+                          <span className={`pill state-${selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
                         </div>
                       </div>
                     </div>
                     {showPerformanceDetails && <p className="compact-description">{item.description}</p>}
-                    {renderTrackerInput(selectedPerformanceOccurrence, item)}
+                    {selectedPerformanceOccurrence ? renderTrackerInput(selectedPerformanceOccurrence, item) : <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
                   </article>
                 ))}
               </div>
@@ -1312,6 +1137,13 @@ function App() {
               </div>
 
               <div className="goal-list">
+                {visibleGoals.length === 0 && (
+                  <article className="panel empty-panel">
+                    <span className="eyebrow">Objectifs</span>
+                    <h3>Aucun objectif pour le moment</h3>
+                    <p>Ajoute seulement les objectifs que tu veux vraiment suivre.</p>
+                  </article>
+                )}
                 {visibleGoals.map((goal) => (
                   <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
                     <div className="goal-head">
