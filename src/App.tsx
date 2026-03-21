@@ -2,6 +2,14 @@ import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
+declare global {
+  interface Window {
+    __suiviDebugLog?: DebugEntry[]
+    copySuiviLogs?: () => Promise<void>
+    clearSuiviLogs?: () => void
+  }
+}
+
 type ModuleKey = 'habits' | 'performances'
 type ViewKey = 'overview' | 'habits' | 'performances' | 'goals'
 type InputKind = 'tristate' | 'score' | 'checklist' | 'numeric' | 'note'
@@ -68,6 +76,12 @@ type AppState = {
   goals: Goal[]
 }
 
+type DebugEntry = {
+  time: string
+  event: string
+  details?: Record<string, unknown>
+}
+
 type TrackerDraft = {
   module: ModuleKey
   title: string
@@ -98,6 +112,7 @@ type GoalDraft = {
 }
 
 const storageKey = 'application-de-suivi-v2'
+const debugStorageKey = 'application-de-suivi-debug-v1'
 const today = '2026-03-21'
 const todayDate = new Date(`${today}T00:00:00`)
 const longDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -343,6 +358,48 @@ function seedState(): AppState {
   return { trackerItems: seedTrackerItems, occurrences: [], goals: seedGoals }
 }
 
+function writeDebugLog(event: string, details?: Record<string, unknown>) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const entry: DebugEntry = {
+    time: new Date().toISOString(),
+    event,
+    details,
+  }
+
+  const nextLog = [...(window.__suiviDebugLog ?? []), entry].slice(-200)
+  window.__suiviDebugLog = nextLog
+  localStorage.setItem(debugStorageKey, JSON.stringify(nextLog))
+  console.info('[suivi-debug]', entry.time, event, details ?? {})
+}
+
+function setupDebugHelpers() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    const raw = localStorage.getItem(debugStorageKey)
+    window.__suiviDebugLog = raw ? JSON.parse(raw) as DebugEntry[] : []
+  } catch {
+    window.__suiviDebugLog = []
+  }
+
+  window.copySuiviLogs = async () => {
+    const payload = JSON.stringify(window.__suiviDebugLog ?? [], null, 2)
+    await navigator.clipboard.writeText(payload)
+    console.info('[suivi-debug] logs copied to clipboard')
+  }
+
+  window.clearSuiviLogs = () => {
+    window.__suiviDebugLog = []
+    localStorage.removeItem(debugStorageKey)
+    console.info('[suivi-debug] logs cleared')
+  }
+}
+
 function loadState(): AppState {
   const raw = localStorage.getItem(storageKey)
   if (!raw) {
@@ -508,6 +565,11 @@ function App() {
   const [importJson, setImportJson] = useState('')
 
   useEffect(() => {
+    setupDebugHelpers()
+    writeDebugLog('app-ready', { trackerItems: state.trackerItems.length, goals: state.goals.length, occurrences: state.occurrences.length })
+  }, [])
+
+  useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
 
@@ -585,12 +647,14 @@ function App() {
       )
 
     patchState({ occurrences: rebuilt })
+    writeDebugLog('recalc-module', { module, occurrences: rebuilt.filter((occurrence) => occurrence.module === module).length })
     setAdminMessage(`Synchronisation ${module === 'habits' ? 'Habitudes' : 'Performances'} terminee.`)
   }
 
   function createNewOccurrence(module: ModuleKey, kind: OccurrenceKind) {
     const occurrence = createOccurrence(module, kind, state.trackerItems, state.occurrences)
     patchState({ occurrences: [...state.occurrences, occurrence] })
+    writeDebugLog('create-occurrence', { module, kind, occurrenceId: occurrence.id, date: occurrence.date, key: occurrence.key })
     if (module === 'performances') {
       setPerformanceOccurrenceId(occurrence.id)
     }
@@ -616,6 +680,7 @@ function App() {
           },
         }],
       })
+      writeDebugLog('habit-entry-created-on-demand', { date: selectedHabitDate, itemId, state: next.state })
       return
     }
 
@@ -638,6 +703,7 @@ function App() {
         }
       }),
     })
+    writeDebugLog('tracker-entry-updated', { occurrenceId, itemId, module: item.module, patchKeys: Object.keys(patch), selectedHabitDate })
   }
 
   function setTriState(occurrenceId: string, itemId: string, stateValue: EntryState) {
@@ -682,6 +748,7 @@ function App() {
     })
 
     patchState({ trackerItems: nextItems, occurrences: nextOccurrences })
+    writeDebugLog('tracker-item-added', { module: trackerDraft.module, title: trackerDraft.title, inputKind: trackerDraft.inputKind, priority: trackerDraft.priority })
     setTrackerDraft(defaultTrackerDraft(trackerDraft.module))
     setAdminMessage(`${trackerDraft.module === 'habits' ? 'Habitude' : 'Performance'} ajoutee.`)
   }
@@ -709,6 +776,7 @@ function App() {
     }
 
     patchState({ goals: [...state.goals, goal] })
+    writeDebugLog('goal-added', { title: goal.title, horizon: goal.horizon, dueDate: goal.dueDate, resultKind: goal.resultKind })
     setGoalDraft(defaultGoalDraft())
     setAdminMessage('Objectif ajoute.')
   }
@@ -720,6 +788,7 @@ function App() {
   }
 
   function testReminders() {
+    writeDebugLog('test-reminders', { dueTodayGoals: dueTodayGoals.length })
     setReminderPreview(
       dueTodayGoals.length > 0
         ? dueTodayGoals.map((goal) => `${horizonLabel(goal.horizon)} · ${goal.title} · ${periodLabel(goal)}`)
@@ -729,6 +798,7 @@ function App() {
   }
 
   function exportJson() {
+    writeDebugLog('export-json', { trackerItems: state.trackerItems.length, goals: state.goals.length, occurrences: state.occurrences.length })
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -745,15 +815,19 @@ function App() {
     try {
       const parsed = JSON.parse(importJson) as AppState
       setState(parsed)
+      writeDebugLog('import-json-success', { trackerItems: parsed.trackerItems.length, goals: parsed.goals.length, occurrences: parsed.occurrences.length })
       setAdminMessage('Import JSON charge.')
       setImportJson('')
     } catch {
+      writeDebugLog('import-json-error', { size: importJson.length })
       setAdminMessage('Import JSON invalide.')
     }
   }
 
   function stepHabitDate(direction: 'previous' | 'next') {
-    setSelectedHabitDate(direction === 'previous' ? previousHabitDate : nextHabitDate)
+    const nextDate = direction === 'previous' ? previousHabitDate : nextHabitDate
+    writeDebugLog('habit-date-step', { direction, from: selectedHabitDate, to: nextDate, existingOccurrence: Boolean(habitOccurrences.find((occurrence) => occurrence.date === nextDate)) })
+    setSelectedHabitDate(nextDate)
   }
 
   function habitHistory(itemId: string) {
@@ -1023,7 +1097,10 @@ function App() {
                             key={`${item.id}-${history.occurrenceId}`}
                             type="button"
                             className={`history-chip state-${history.state} ${history.date === selectedHabitDate ? 'active' : ''}`}
-                            onClick={() => setSelectedHabitDate(history.date)}
+                            onClick={() => {
+                              writeDebugLog('habit-history-select', { from: selectedHabitDate, to: history.date, state: history.state })
+                              setSelectedHabitDate(history.date)
+                            }}
                           >
                             <span>{history.date.slice(5)}</span>
                             <strong>{entryLabel(history.state)}</strong>
