@@ -114,7 +114,7 @@ type GoalDraft = {
 const storageKey = 'application-de-suivi-v2'
 const debugStorageKey = 'application-de-suivi-debug-v1'
 const today = '2026-03-21'
-const todayDate = new Date(`${today}T00:00:00`)
+const todayDate = new Date(`${today}T12:00:00`)
 const longDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
 const priorityOrder: Priority[] = ['high', 'medium', 'low', 'archived']
@@ -261,8 +261,17 @@ function daysBetween(start: string, end: string) {
   return Math.round((b - a) / 86400000)
 }
 
+function formatDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function shiftDate(date: string, delta: number) {
-  return new Date(new Date(`${date}T00:00:00`).getTime() + delta * 86400000).toISOString().slice(0, 10)
+  const next = new Date(`${date}T12:00:00`)
+  next.setDate(next.getDate() + delta)
+  return formatDateKey(next)
 }
 
 function formatLongDate(date: string | null | undefined) {
@@ -283,8 +292,8 @@ function createOccurrence(
     const standardCount = occurrences.filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard').length
     const reviewCount = occurrences.filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'review').length
     const occurrenceDate = kind === 'standard'
-      ? new Date(todayDate.getTime() + standardCount * 86400000).toISOString().slice(0, 10)
-      : new Date(todayDate.getTime() + reviewCount * 7 * 86400000).toISOString().slice(0, 10)
+      ? formatDateKey(new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() + standardCount, 12))
+      : formatDateKey(new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() + reviewCount * 7, 12))
     const key = Math.floor(new Date(`${occurrenceDate}T00:00:00`).getTime() / 86400000)
     const entries = Object.fromEntries(
       items
