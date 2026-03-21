@@ -593,7 +593,6 @@ function App() {
   const [modalView, setModalView] = useState<ModuleKey | 'goals' | null>(null)
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
-  const [trackerMenuId, setTrackerMenuId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
@@ -985,7 +984,6 @@ function App() {
     setEditingTrackerId(item?.id ?? null)
     setTrackerDraft(item ? trackerDraftFromItem(item) : defaultTrackerDraft(module))
     setModalView(module)
-    setTrackerMenuId(null)
   }
 
   function openGoalModal() {
@@ -1008,7 +1006,6 @@ function App() {
 
     if (!occurrence) return
 
-    setTrackerMenuId(null)
     updateTrackerResponseDraft(cloneEntry(occurrence.entries[itemId]))
     setTrackerEditor({ module, itemId, occurrenceId, date })
     writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId, date })
@@ -1073,7 +1070,7 @@ function App() {
                 <strong className="date-nav-label">{selectedHabitDateLabel}</strong>
                 <button type="button" className="date-arrow" onClick={() => stepHabitDate('next')} aria-label="Jour suivant">›</button>
               </div>
-              {habitItems.length > 0 && <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>}
+              <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>
             </div>
 
             <div className="tracker-list">
@@ -1081,7 +1078,6 @@ function App() {
                 <article className="empty-panel">
                   <h3>Aucune habitude</h3>
                   <p>Ajoute seulement tes propres consignes.</p>
-                  <button type="button" className="fab-button empty-add" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>
                 </article>
               )}
               {habitItems.map((item) => (
@@ -1104,17 +1100,11 @@ function App() {
                       <button
                         type="button"
                         className="ghost-icon tracker-menu-button"
-                        aria-label={`Options ${item.title}`}
-                        onClick={() => setTrackerMenuId((current) => current === item.id ? null : item.id)}
+                        aria-label={`Modifier ${item.title}`}
+                        onClick={() => openTrackerModal('habits', item)}
                       >
                         ⋮
                       </button>
-                      {trackerMenuId === item.id && (
-                        <div className="tracker-menu" role="menu" aria-label={`Actions ${item.title}`}>
-                          <button type="button" onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}>Repondre</button>
-                          <button type="button" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1151,7 +1141,7 @@ function App() {
                 </label>
                 <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Nouvelle iteration</button>
               </div>
-              {performanceItems.length > 0 && <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>}
+              <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
             </div>
 
             <div className="tracker-list">
@@ -1159,7 +1149,6 @@ function App() {
                 <article className="empty-panel">
                   <h3>Aucune performance</h3>
                   <p>Ajoute tes axes de progression avant de lancer une iteration.</p>
-                  <button type="button" className="fab-button empty-add" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
                 </article>
               )}
               {performanceItems.map((item) => (
@@ -1183,17 +1172,11 @@ function App() {
                       <button
                         type="button"
                         className="ghost-icon tracker-menu-button"
-                        aria-label={`Options ${item.title}`}
-                        onClick={() => setTrackerMenuId((current) => current === item.id ? null : item.id)}
+                        aria-label={`Modifier ${item.title}`}
+                        onClick={() => openTrackerModal('performances', item)}
                       >
                         ⋮
                       </button>
-                      {trackerMenuId === item.id && (
-                        <div className="tracker-menu" role="menu" aria-label={`Actions ${item.title}`}>
-                          <button type="button" disabled={!selectedPerformanceOccurrence} onClick={() => selectedPerformanceOccurrence && openTrackerEditor('performances', item.id, selectedPerformanceOccurrence.id)}>Repondre</button>
-                          <button type="button" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
-                        </div>
-                      )}
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
@@ -1208,7 +1191,7 @@ function App() {
           <section className="panel surface-panel">
             <div className="surface-head">
               <strong>Objectifs</strong>
-              {sortedGoals.length > 0 && <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={openGoalModal}>+</button>}
+              <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={openGoalModal}>+</button>
             </div>
 
             <div className="goal-list">
@@ -1216,7 +1199,6 @@ function App() {
                 <article className="empty-panel">
                   <h3>Aucun objectif</h3>
                   <p>Ajoute seulement les objectifs que tu veux suivre.</p>
-                  <button type="button" className="fab-button empty-add" aria-label="Ajouter un objectif" onClick={openGoalModal}>+</button>
                 </article>
               )}
               {sortedGoals.map((goal) => (
