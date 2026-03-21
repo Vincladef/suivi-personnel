@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
@@ -97,6 +97,19 @@ type TrackerDraft = {
   targetUnit: string
 }
 
+type TrackerEditorState = {
+  module: ModuleKey
+  occurrenceId: string
+  itemId: string
+  date?: string
+}
+
+type HistoryItem = {
+  occurrenceId: string
+  date: string
+  state: EntryState
+}
+
 type GoalDraft = {
   title: string
   description: string
@@ -120,6 +133,13 @@ const longDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', da
 const priorityOrder: Priority[] = ['high', 'medium', 'low', 'archived']
 const horizonOrder: GoalHorizon[] = ['week', 'month', 'quarter', 'year', 'life']
 const dayLabels = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+const likertOptions = [
+  { value: 4, label: 'Oui' },
+  { value: 3, label: 'Plutot oui' },
+  { value: 2, label: 'Neutre' },
+  { value: 1, label: 'Plutot non' },
+  { value: 0, label: 'Non' },
+] as const
 
 const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   module,
@@ -237,6 +257,12 @@ function shiftDate(date: string, delta: number) {
 function formatLongDate(date: string | null | undefined) {
   if (!date) return 'Aucun jour'
   return longDateFormatter.format(new Date(`${date}T12:00:00`))
+}
+
+function formatHistoryDate(date: string) {
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    .format(new Date(`${date}T12:00:00`))
+    .replace('.', '')
 }
 
 function createOccurrence(
@@ -452,6 +478,45 @@ function createHabitOccurrenceForDate(date: string, items: TrackerItem[], occurr
   }
 }
 
+function HistoryCarousel({
+  items,
+  selectedDate,
+  onSelect,
+}: {
+  items: HistoryItem[]
+  selectedDate: string
+  onSelect: (date: string, state: EntryState) => void
+}) {
+  const stripRef = useRef<HTMLDivElement | null>(null)
+
+  function scroll(direction: 'previous' | 'next') {
+    stripRef.current?.scrollBy({ left: direction === 'next' ? 188 : -188, behavior: 'smooth' })
+  }
+
+  if (items.length === 0) {
+    return <span className="muted-inline">Pas encore d historique.</span>
+  }
+
+  return (
+    <div className="history-carousel">
+      <button type="button" className="history-nav" aria-label="Historique precedent" onClick={() => scroll('previous')}>‹</button>
+      <div className="history-strip" ref={stripRef}>
+        {items.map((history) => (
+          <button
+            key={history.occurrenceId}
+            type="button"
+            className={`history-chip state-${history.state} ${history.date === selectedDate ? 'active' : ''}`}
+            onClick={() => onSelect(history.date, history.state)}
+          >
+            <span>{formatHistoryDate(history.date)}</span>
+          </button>
+        ))}
+      </div>
+      <button type="button" className="history-nav" aria-label="Historique suivant" onClick={() => scroll('next')}>›</button>
+    </div>
+  )
+}
+
 function App() {
   const [view, setView] = useState<ViewKey>('habits')
   const [state, setState] = useState<AppState>(() => loadState())
@@ -459,6 +524,7 @@ function App() {
   const [performanceOccurrenceId, setPerformanceOccurrenceId] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [modalView, setModalView] = useState<ModuleKey | 'goals' | null>(null)
+  const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(defaultGoalDraft())
 
@@ -494,6 +560,17 @@ function App() {
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
   const sortedGoals = sortGoals(state.goals)
   const activeViewTitle = view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : 'Objectifs'
+  const trackerEditorItem = trackerEditor ? state.trackerItems.find((candidate) => candidate.id === trackerEditor.itemId) ?? null : null
+  const trackerEditorOccurrence = trackerEditor
+    ? trackerEditor.module === 'habits'
+      ? buildHabitOccurrenceForDate(
+          trackerEditor.date ?? selectedHabitDate,
+          state.trackerItems,
+          state.occurrences,
+          habitOccurrences.find((occurrence) => occurrence.date === (trackerEditor.date ?? selectedHabitDate)),
+        )
+      : state.occurrences.find((occurrence) => occurrence.id === trackerEditor.occurrenceId) ?? null
+    : null
 
   function patchState(patch: Partial<AppState>) {
     setState((current) => ({ ...current, ...patch }))
@@ -638,7 +715,7 @@ function App() {
     }))
   }
 
-  function renderTrackerInput(occurrence: TrackerOccurrence, item: TrackerItem) {
+  function renderTrackerEditorInput(occurrence: TrackerOccurrence, item: TrackerItem) {
     const entry = occurrence.entries[item.id]
 
     if (entry.state === 'rest' || entry.state === 'inactive') {
@@ -657,10 +734,20 @@ function App() {
 
     if (item.inputKind === 'score') {
       return (
-        <div className="inline-field">
-          <input type="range" min="0" max="4" step="1" value={entry.score ?? 0} onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { score: Number(event.target.value) })} />
-          <strong>{entry.score ?? 0}/4</strong>
-        </div>
+        <label className="field">
+          <span>Reponse</span>
+          <select
+            value={entry.score == null ? '' : String(entry.score)}
+            onChange={(event) => updateTrackerEntry(occurrence.id, item.id, {
+              score: event.target.value === '' ? null : Number(event.target.value),
+            })}
+          >
+            <option value="">Choisir</option>
+            {likertOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
       )
     }
 
@@ -687,18 +774,26 @@ function App() {
 
     if (item.inputKind === 'numeric') {
       return (
-        <div className="inline-field">
-          <input
-            type="number"
-            value={entry.numericValue ?? ''}
-            onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
-          />
+        <div className="editor-grid">
+          <label className="field">
+            <span>Valeur</span>
+            <input
+              type="number"
+              value={entry.numericValue ?? ''}
+              onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+            />
+          </label>
           <span className="muted-inline">{item.target ? `${item.target.mode === 'atLeast' ? '>= ' : item.target.mode === 'atMost' ? '<= ' : '= '}${item.target.value} ${item.target.unit}` : ''}</span>
         </div>
       )
     }
 
-    return <textarea value={entry.note} onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { note: event.target.value })} placeholder="Observation, contexte, journal..." />
+    return (
+      <label className="field">
+        <span>Note</span>
+        <textarea value={entry.note} onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { note: event.target.value })} placeholder="Observation, contexte, journal..." />
+      </label>
+    )
   }
 
   function renderGoalInput(goal: Goal) {
@@ -768,6 +863,18 @@ function App() {
     setModalView('goals')
   }
 
+  function openTrackerEditor(module: ModuleKey, itemId: string, occurrenceId: string, date?: string) {
+    setTrackerEditor({ module, itemId, occurrenceId, date })
+    writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId, date })
+  }
+
+  function closeTrackerEditor() {
+    if (trackerEditor) {
+      writeDebugLog('tracker-editor-closed', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditor.occurrenceId, date: trackerEditor.date })
+    }
+    setTrackerEditor(null)
+  }
+
   return (
     <div className="shell minimal-shell">
       <button type="button" className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} aria-label="Fermer le menu" onClick={() => setSidebarOpen(false)} />
@@ -819,35 +926,35 @@ function App() {
               {habitItems.map((item) => (
                 <article key={item.id} className="tracker-card">
                   <div className="tracker-head">
-                    <div>
-                      <strong>{item.title}</strong>
-                      <div className="tracker-meta">
-                        <span className={`pill state-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
+                    <button
+                      type="button"
+                      className="tracker-open"
+                      onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}
+                      aria-label={`Renseigner ${item.title}`}
+                    >
+                      <div className="tracker-open-copy">
+                        <strong>{item.title}</strong>
+                        <div className="tracker-meta">
+                          <span className={`pill state-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
+                        </div>
                       </div>
-                    </div>
+                      <span className="tracker-open-hint">Renseigner</span>
+                    </button>
                   </div>
 
                   {item.description && <p className="compact-description">{item.description}</p>}
 
                   <div className="history-row">
-                    <div className="history-strip">
-                      {habitHistory(item.id).length > 0 ? habitHistory(item.id).map((history) => (
-                        <button
-                          key={`${item.id}-${history.occurrenceId}`}
-                          type="button"
-                          className={`history-chip state-${history.state} ${history.date === selectedHabitDate ? 'active' : ''}`}
-                          onClick={() => {
-                            writeDebugLog('habit-history-select', { from: selectedHabitDate, to: history.date, state: history.state })
-                            setSelectedHabitDate(history.date)
-                          }}
-                        >
-                          <span>{formatLongDate(history.date)}</span>
-                        </button>
-                      )) : <span className="muted-inline">Pas encore d historique.</span>}
-                    </div>
+                    <span className="history-label">Historique</span>
+                    <HistoryCarousel
+                      items={habitHistory(item.id)}
+                      selectedDate={selectedHabitDate}
+                      onSelect={(date, state) => {
+                        writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, state })
+                        setSelectedHabitDate(date)
+                      }}
+                    />
                   </div>
-
-                  {renderTrackerInput(resolvedHabitOccurrence, item)}
                 </article>
               ))}
             </div>
@@ -882,15 +989,24 @@ function App() {
               {performanceItems.map((item) => (
                 <article key={item.id} className="tracker-card">
                   <div className="tracker-head">
-                    <div>
-                      <strong>{item.title}</strong>
-                      <div className="tracker-meta">
-                        <span className={`pill state-${selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
+                    <button
+                      type="button"
+                      className="tracker-open"
+                      onClick={() => selectedPerformanceOccurrence && openTrackerEditor('performances', item.id, selectedPerformanceOccurrence.id)}
+                      aria-label={`Renseigner ${item.title}`}
+                      disabled={!selectedPerformanceOccurrence}
+                    >
+                      <div className="tracker-open-copy">
+                        <strong>{item.title}</strong>
+                        <div className="tracker-meta">
+                          <span className={`pill state-${selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
+                        </div>
                       </div>
-                    </div>
+                      <span className="tracker-open-hint">Renseigner</span>
+                    </button>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
-                  {selectedPerformanceOccurrence ? renderTrackerInput(selectedPerformanceOccurrence, item) : <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
+                  {!selectedPerformanceOccurrence && <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
                 </article>
               ))}
             </div>
@@ -930,6 +1046,27 @@ function App() {
               ))}
             </div>
           </section>
+        )}
+
+        {trackerEditor && trackerEditorItem && trackerEditorOccurrence && (
+          <div className="modal-backdrop" role="presentation" onClick={closeTrackerEditor}>
+            <div className="modal-card tracker-editor-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-head">
+                <div>
+                  <h3>{trackerEditorItem.title}</h3>
+                  <div className="editor-context">
+                    <span className={`pill state-${trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown'}`}>{entryLabel(trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown')}</span>
+                    <span className="ghost-pill">{trackerEditor.module === 'habits' ? formatLongDate(trackerEditor.date) : trackerEditorOccurrence.label}</span>
+                  </div>
+                </div>
+                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={closeTrackerEditor}>×</button>
+              </div>
+              {trackerEditorItem.description && <p className="compact-description">{trackerEditorItem.description}</p>}
+              <div className="tracker-editor-body">
+                {renderTrackerEditorInput(trackerEditorOccurrence, trackerEditorItem)}
+              </div>
+            </div>
+          </div>
         )}
 
         {modalView && (
