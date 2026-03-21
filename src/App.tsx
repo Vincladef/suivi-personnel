@@ -144,6 +144,14 @@ type HistoryItem = {
   state: EntryState
 }
 
+type CelebrationState = {
+  itemId: string
+  module: ModuleKey
+  level: 1 | 2 | 3 | 4
+  streak: number
+  token: number
+}
+
 type GoalDraft = {
   title: string
   description: string
@@ -377,6 +385,100 @@ function isHabitActive(item: TrackerItem, date: string) {
   if (!item.frequency || item.frequency.kind === 'daily') return true
   if (item.frequency.kind === 'weekdays') return day >= 1 && day <= 5
   return item.frequency.days.includes(day)
+}
+
+function orderedStandardOccurrences(module: ModuleKey, occurrences: TrackerOccurrence[]) {
+  return occurrences
+    .filter((occurrence) => occurrence.module === module && occurrence.kind === 'standard')
+    .sort((left, right) => right.key - left.key)
+}
+
+function successStreakForOccurrence(module: ModuleKey, itemId: string, occurrenceId: string, occurrences: TrackerOccurrence[]) {
+  const ordered = orderedStandardOccurrences(module, occurrences)
+  const startIndex = ordered.findIndex((occurrence) => occurrence.id === occurrenceId)
+  if (startIndex === -1) return 0
+
+  let streak = 0
+  for (let index = startIndex; index < ordered.length; index += 1) {
+    if (ordered[index].entries[itemId]?.state !== 'success') break
+    streak += 1
+  }
+  return streak
+}
+
+function celebrationLevelForStreak(streak: number): 1 | 2 | 3 | 4 {
+  if (streak >= 6) return 4
+  if (streak >= 4) return 3
+  if (streak >= 2) return 2
+  return 1
+}
+
+function celebrationMessageForStreak(streak: number) {
+  if (streak >= 6) return `Serie de ${streak} reussites`
+  if (streak >= 4) return `Tres belle serie : ${streak}`
+  if (streak >= 2) return `Serie lancee : ${streak}`
+  return 'Bien joue'
+}
+
+function celebrationGlyphsForLevel(level: CelebrationState['level']) {
+  if (level === 4) return ['✦', '💚', '✦', '⚡']
+  if (level === 3) return ['✦', '★', '✦']
+  if (level === 2) return ['✦', '✦', '✦']
+  return ['✦', '✓', '✦']
+}
+
+function buildUpdatedOccurrencesAfterEntryPatch(
+  occurrences: TrackerOccurrence[],
+  trackerItems: TrackerItem[],
+  item: TrackerItem,
+  occurrenceId: string,
+  patch: Partial<TrackerEntry>,
+  fallbackHabitDate: string,
+) {
+  const existingOccurrence = occurrences.find((occurrence) => occurrence.id === occurrenceId)
+
+  if (!existingOccurrence && item.module === 'habits') {
+    const createdOccurrence = createHabitOccurrenceForDate(fallbackHabitDate, trackerItems, occurrences)
+    const current = createdOccurrence.entries[item.id]
+    const next = { ...current, ...patch }
+    next.state = deriveState(item, next)
+
+    return {
+      occurrenceId: createdOccurrence.id,
+      nextEntry: next,
+      occurrences: [...occurrences, {
+        ...createdOccurrence,
+        entries: {
+          ...createdOccurrence.entries,
+          [item.id]: next,
+        },
+      }],
+      createdOnDemand: true,
+    }
+  }
+
+  let nextEntry: TrackerEntry | null = null
+  const nextOccurrences = occurrences.map((occurrence) => {
+    if (occurrence.id !== occurrenceId) return occurrence
+    const current = occurrence.entries[item.id]
+    const next = { ...current, ...patch }
+    next.state = deriveState(item, next)
+    nextEntry = next
+    return {
+      ...occurrence,
+      entries: {
+        ...occurrence.entries,
+        [item.id]: next,
+      },
+    }
+  })
+
+  return {
+    occurrenceId,
+    nextEntry,
+    occurrences: nextOccurrences,
+    createdOnDemand: false,
+  }
 }
 
 function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[]) {
@@ -819,6 +921,7 @@ function App() {
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
+  const [celebration, setCelebration] = useState<CelebrationState | null>(null)
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const checklistDragRef = useRef<{ scope: string; index: number } | null>(null)
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
@@ -832,6 +935,12 @@ function App() {
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
+
+  useEffect(() => {
+    if (!celebration) return
+    const timeout = window.setTimeout(() => setCelebration(null), 2200)
+    return () => window.clearTimeout(timeout)
+  }, [celebration])
 
   const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
   const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
@@ -889,43 +998,31 @@ function App() {
 
   function updateTrackerEntry(occurrenceId: string, itemId: string, patch: Partial<TrackerEntry>) {
     const item = state.trackerItems.find((candidate) => candidate.id === itemId)!
-    const existingOccurrence = state.occurrences.find((occurrence) => occurrence.id === occurrenceId)
+    const result = buildUpdatedOccurrencesAfterEntryPatch(
+      state.occurrences,
+      state.trackerItems,
+      item,
+      occurrenceId,
+      patch,
+      selectedHabitDate,
+    )
 
-    if (!existingOccurrence && item.module === 'habits') {
-      const createdOccurrence = createHabitOccurrenceForDate(selectedHabitDate, state.trackerItems, state.occurrences)
-      const current = createdOccurrence.entries[itemId]
-      const next = { ...current, ...patch }
-      next.state = deriveState(item, next)
+    patchState({ occurrences: result.occurrences })
 
-      patchState({
-        occurrences: [...state.occurrences, {
-          ...createdOccurrence,
-          entries: {
-            ...createdOccurrence.entries,
-            [itemId]: next,
-          },
-        }],
-      })
-      writeDebugLog('habit-entry-created-on-demand', { date: selectedHabitDate, itemId, state: next.state })
-      return
+    if (result.createdOnDemand) {
+      writeDebugLog('habit-entry-created-on-demand', { date: selectedHabitDate, itemId, state: result.nextEntry?.state })
     }
 
-    patchState({
-      occurrences: state.occurrences.map((occurrence) => {
-        if (occurrence.id !== occurrenceId) return occurrence
-        const current = occurrence.entries[itemId]
-        const next = { ...current, ...patch }
-        next.state = deriveState(item, next)
-        return {
-          ...occurrence,
-          entries: {
-            ...occurrence.entries,
-            [itemId]: next,
-          },
-        }
-      }),
+    writeDebugLog('tracker-entry-updated', {
+      occurrenceId: result.occurrenceId,
+      itemId,
+      module: item.module,
+      patchKeys: Object.keys(patch),
+      selectedHabitDate,
+      nextState: result.nextEntry?.state,
     })
-    writeDebugLog('tracker-entry-updated', { occurrenceId, itemId, module: item.module, patchKeys: Object.keys(patch), selectedHabitDate })
+
+    return result
   }
 
 
@@ -1416,7 +1513,7 @@ function App() {
   function saveTrackerEditor() {
     const draft = trackerResponseDraftRef.current
     if (!trackerEditor || !trackerEditorItem || !trackerEditorOccurrence || !draft) return
-    updateTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id, {
+    const result = updateTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id, {
       state: draft.state,
       score: draft.score,
       checklist: draft.checklist,
@@ -1424,6 +1521,16 @@ function App() {
       note: draft.note,
       subEntries: draft.subEntries,
     })
+    if (result?.nextEntry?.state === 'success') {
+      const streak = successStreakForOccurrence(trackerEditor.module, trackerEditor.itemId, result.occurrenceId, result.occurrences)
+      setCelebration({
+        itemId: trackerEditor.itemId,
+        module: trackerEditor.module,
+        level: celebrationLevelForStreak(streak),
+        streak,
+        token: Date.now(),
+      })
+    }
     writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
     closeTrackerEditor()
   }
@@ -1561,8 +1668,17 @@ function App() {
                   <p>Ajoute seulement tes propres consignes.</p>
                 </article>
               )}
-              {habitItems.map((item) => (
-                <article key={item.id} className="tracker-card">
+              {habitItems.map((item) => {
+                const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
+                return (
+                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                  {isCelebrating && (
+                    <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
+                      {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
+                        <span key={`${glyph}-${index}`}>{glyph}</span>
+                      ))}
+                    </div>
+                  )}
                   <div className="tracker-head">
                     <button
                       type="button"
@@ -1608,7 +1724,7 @@ function App() {
                     />
                   </div>
                 </article>
-              ))}
+              )})}
             </div>
           </section>
         )}
@@ -1629,8 +1745,17 @@ function App() {
                   <p>Ajoute tes axes de progression avant de lancer une iteration.</p>
                 </article>
               )}
-              {performanceItems.map((item) => (
-                <article key={item.id} className="tracker-card">
+              {performanceItems.map((item) => {
+                const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
+                return (
+                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                  {isCelebrating && (
+                    <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
+                      {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
+                        <span key={`${glyph}-${index}`}>{glyph}</span>
+                      ))}
+                    </div>
+                  )}
                   <div className="tracker-head">
                     <button
                       type="button"
@@ -1662,7 +1787,7 @@ function App() {
                   {item.description && <p className="compact-description">{item.description}</p>}
                   {!selectedPerformanceOccurrence && <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
                 </article>
-              ))}
+              )})}
             </div>
           </section>
         )}
@@ -1728,7 +1853,18 @@ function App() {
           </div>
         )}
 
-        {modalView && (
+        {celebration && (
+        <div className={`celebration-toast celebration-level-${celebration.level}`} aria-live="polite">
+          <div className="celebration-toast-glyphs" aria-hidden="true">
+            {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
+              <span key={`${glyph}-${index}`}>{glyph}</span>
+            ))}
+          </div>
+          <strong>{celebrationMessageForStreak(celebration.streak)}</strong>
+        </div>
+      )}
+
+      {modalView && (
           <div className="modal-backdrop" role="presentation" onClick={() => { setModalView(null); setEditingTrackerId(null) }}>
             <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="modal-head">

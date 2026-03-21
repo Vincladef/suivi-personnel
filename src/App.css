@@ -518,6 +518,35 @@ small,
   display: flex;
   align-items: center;
   padding: 0.58rem 0.72rem;
+  border: 1px solid transparent;
+  transition: transform 160ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.history-chip.state-success {
+  background: linear-gradient(180deg, rgba(224, 247, 231, 0.96), rgba(210, 241, 220, 0.92));
+  border-color: rgba(95, 179, 125, 0.28);
+  color: #266447;
+  box-shadow: 0 12px 26px rgba(73, 150, 102, 0.16);
+}
+
+.history-chip.state-excused,
+.history-chip.state-rest {
+  background: linear-gradient(180deg, rgba(255, 244, 201, 0.96), rgba(253, 236, 176, 0.92));
+  border-color: rgba(216, 181, 84, 0.3);
+  color: #8b6618;
+  box-shadow: 0 12px 26px rgba(214, 178, 77, 0.14);
+}
+
+.history-chip.state-failed {
+  background: linear-gradient(180deg, rgba(253, 228, 225, 0.96), rgba(249, 213, 209, 0.92));
+  border-color: rgba(212, 117, 106, 0.28);
+  color: #983d34;
+  box-shadow: 0 12px 26px rgba(188, 104, 94, 0.14);
+}
+
+.history-chip.active {
+  transform: translateY(-1px) scale(1.015);
+  box-shadow: 0 18px 34px rgba(29, 36, 48, 0.16);
 }
 
 .goal-head small {
@@ -1007,6 +1036,17 @@ small,
     gap: 0.65rem;
   }
 
+  .celebration-toast {
+    right: 0.75rem;
+    left: 0.75rem;
+    bottom: 0.8rem;
+    justify-content: center;
+  }
+
+  .dopamine-burst span {
+    font-size: 0.95rem;
+  }
+
 }
 
 .history-nav.is-hidden {
@@ -1043,4 +1083,119 @@ small,
 .editor-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+
+.tracker-card.is-celebrating {
+  transform-origin: center;
+  animation: celebrationPulse 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tracker-card.celebration-level-2,
+.tracker-card.celebration-level-3,
+.tracker-card.celebration-level-4 {
+  box-shadow: 0 28px 68px rgba(67, 134, 98, 0.18);
+}
+
+.dopamine-burst {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.dopamine-burst span {
+  position: absolute;
+  top: 0.8rem;
+  right: 1rem;
+  font-size: 1rem;
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.8);
+  animation: sparkleRise 1100ms ease-out forwards;
+}
+
+.dopamine-burst span:nth-child(2) {
+  right: 3.3rem;
+  top: 1.45rem;
+  animation-delay: 70ms;
+}
+
+.dopamine-burst span:nth-child(3) {
+  right: 5.2rem;
+  top: 0.6rem;
+  animation-delay: 120ms;
+}
+
+.dopamine-burst span:nth-child(4) {
+  right: 2.2rem;
+  top: 2rem;
+  animation-delay: 160ms;
+}
+
+.celebration-toast {
+  position: fixed;
+  right: 1.15rem;
+  bottom: 1.15rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.8rem 1rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(24, 42, 32, 0.94), rgba(21, 32, 29, 0.92));
+  color: #f4fff7;
+  box-shadow: 0 22px 44px rgba(13, 22, 18, 0.24);
+  animation: toastFloat 2200ms ease forwards;
+}
+
+.celebration-toast-glyphs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.celebration-toast strong {
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+
+.celebration-level-2 .celebration-toast-glyphs,
+.celebration-level-3 .celebration-toast-glyphs,
+.celebration-level-4 .celebration-toast-glyphs {
+  filter: saturate(1.12);
+}
+
+@keyframes celebrationPulse {
+  0% { transform: scale(1); }
+  38% { transform: scale(1.018); }
+  100% { transform: scale(1); }
+}
+
+@keyframes sparkleRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.82);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -22px, 0) scale(1.08);
+  }
+}
+
+@keyframes toastFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  10%, 78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
