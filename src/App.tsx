@@ -97,7 +97,7 @@ type GoalDraft = {
   targetUnit: string
 }
 
-const storageKey = 'application-de-suivi-v1'
+const storageKey = 'application-de-suivi-v2'
 const today = '2026-03-21'
 const todayDate = new Date(`${today}T00:00:00`)
 
