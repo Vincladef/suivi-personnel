@@ -1190,10 +1190,9 @@ function App() {
               </button>
               <div className="check-item-copy">
                 <span>{label}</span>
-                <small>{value === 'done' ? 'Fait' : value === 'excused' ? 'Excuse' : value === 'failed' ? 'Non fait' : 'A definir'}</small>
+                {(value === 'done' || value === 'excused') && <small>{value === 'done' ? 'Fait' : 'Excuse'}</small>}
               </div>
               <div className="check-item-actions">
-                <button type="button" className={`ghost-button compact-action ${value === 'failed' ? 'active' : ''}`} onClick={() => setValue(value === 'failed' ? 'unknown' : 'failed')}>Non fait</button>
                 <button type="button" className={`ghost-button compact-action ${value === 'excused' ? 'active' : ''}`} onClick={() => setValue(value === 'excused' ? 'unknown' : 'excused')}>Passe</button>
               </div>
             </div>
@@ -1827,7 +1826,19 @@ function App() {
                       )}
                     </>
                   )}
-                  <input type="number" min="0" value={trackerDraft.restAfterSuccess} onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })} placeholder="Nombre de jours de repos apres succes" />
+                  {modalView === 'habits' && (
+                    <label className="field">
+                      <span>Jours de repos automatiques</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={trackerDraft.restAfterSuccess}
+                        onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
+                        placeholder="Nombre de jours"
+                      />
+                      <small className="muted-inline">Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.</small>
+                    </label>
+                  )}
                   {trackerDraft.inputKind === 'checklist' && renderChecklistDraftEditor(
                     'tracker-draft',
                     trackerDraft.checklistItems,
