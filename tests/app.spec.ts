@@ -23,7 +23,8 @@ test('can add a personal habit and track it on the current day without creating 
   await expect(page.getByText('Sport', { exact: true })).toBeVisible()
   await expect(page.getByText(/samedi 21 mars 2026/i)).toBeVisible()
   await page.getByRole('button', { name: /Renseigner Sport/i }).click()
-  await page.getByRole('button', { name: 'Valide' }).click()
+  await page.getByRole('button', { name: 'Valide', exact: true }).click()
+  await page.getByRole('button', { name: 'Valider', exact: true }).click()
   await expect(page.locator('.pill.state-success').filter({ hasText: 'Reussi' }).first()).toBeVisible()
 })
 

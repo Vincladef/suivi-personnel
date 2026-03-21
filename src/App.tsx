@@ -170,6 +170,33 @@ const defaultGoalDraft = (): GoalDraft => ({
   targetUnit: '',
 })
 
+function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
+  return {
+    module: item.module,
+    title: item.title,
+    description: item.description,
+    inputKind: item.inputKind,
+    priority: item.priority,
+    frequencyKind: item.frequency?.kind ?? 'daily',
+    frequencyDays: item.frequency?.days ?? [1, 2, 3, 4, 5],
+    restAfterSuccess: item.restAfterSuccess,
+    checklistText: item.checklistTemplate.join(', '),
+    targetMode: item.target?.mode ?? 'atLeast',
+    targetValue: item.target?.value ?? 1,
+    targetUnit: item.target?.unit ?? '',
+  }
+}
+
+function cloneEntry(entry: TrackerEntry): TrackerEntry {
+  return {
+    state: entry.state,
+    score: entry.score,
+    checklist: [...entry.checklist],
+    numericValue: entry.numericValue,
+    note: entry.note,
+  }
+}
+
 const seedTrackerItems: TrackerItem[] = []
 const seedGoals: Goal[] = []
 
@@ -488,6 +515,28 @@ function HistoryCarousel({
   onSelect: (date: string, state: EntryState) => void
 }) {
   const stripRef = useRef<HTMLDivElement | null>(null)
+  const [canScrollPrevious, setCanScrollPrevious] = useState(false)
+  const [canScrollNext, setCanScrollNext] = useState(false)
+
+  useEffect(() => {
+    const node = stripRef.current
+    if (!node) return
+
+    const updateButtons = () => {
+      const maxScroll = Math.max(node.scrollWidth - node.clientWidth, 0)
+      setCanScrollPrevious(node.scrollLeft > 4)
+      setCanScrollNext(maxScroll - node.scrollLeft > 4)
+    }
+
+    updateButtons()
+    node.addEventListener('scroll', updateButtons)
+    window.addEventListener('resize', updateButtons)
+
+    return () => {
+      node.removeEventListener('scroll', updateButtons)
+      window.removeEventListener('resize', updateButtons)
+    }
+  }, [items])
 
   function scroll(direction: 'previous' | 'next') {
     stripRef.current?.scrollBy({ left: direction === 'next' ? 188 : -188, behavior: 'smooth' })
@@ -499,7 +548,16 @@ function HistoryCarousel({
 
   return (
     <div className="history-carousel">
-      <button type="button" className="history-nav" aria-label="Historique precedent" onClick={() => scroll('previous')}>‹</button>
+      <button
+        type="button"
+        className={`history-nav ${canScrollPrevious ? '' : 'is-hidden'}`}
+        aria-label="Historique precedent"
+        aria-hidden={!canScrollPrevious}
+        tabIndex={canScrollPrevious ? 0 : -1}
+        onClick={() => scroll('previous')}
+      >
+        ‹
+      </button>
       <div className="history-strip" ref={stripRef}>
         {items.map((history) => (
           <button
@@ -512,7 +570,16 @@ function HistoryCarousel({
           </button>
         ))}
       </div>
-      <button type="button" className="history-nav" aria-label="Historique suivant" onClick={() => scroll('next')}>›</button>
+      <button
+        type="button"
+        className={`history-nav ${canScrollNext ? '' : 'is-hidden'}`}
+        aria-label="Historique suivant"
+        aria-hidden={!canScrollNext}
+        tabIndex={canScrollNext ? 0 : -1}
+        onClick={() => scroll('next')}
+      >
+        ›
+      </button>
     </div>
   )
 }
@@ -525,6 +592,10 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [modalView, setModalView] = useState<ModuleKey | 'goals' | null>(null)
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
+  const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
+  const [trackerMenuId, setTrackerMenuId] = useState<string | null>(null)
+  const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
+  const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(defaultGoalDraft())
 
@@ -571,6 +642,12 @@ function App() {
         )
       : state.occurrences.find((occurrence) => occurrence.id === trackerEditor.occurrenceId) ?? null
     : null
+
+  function updateTrackerResponseDraft(next: TrackerEntry | null) {
+    trackerResponseDraftRef.current = next
+    setTrackerResponseDraft(next)
+  }
+
 
   function patchState(patch: Partial<AppState>) {
     setState((current) => ({ ...current, ...patch }))
@@ -626,15 +703,12 @@ function App() {
     writeDebugLog('tracker-entry-updated', { occurrenceId, itemId, module: item.module, patchKeys: Object.keys(patch), selectedHabitDate })
   }
 
-  function setTriState(occurrenceId: string, itemId: string, stateValue: EntryState) {
-    updateTrackerEntry(occurrenceId, itemId, { state: stateValue })
-  }
 
-  function addTrackerItem(event: FormEvent<HTMLFormElement>) {
+  function saveTrackerItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const checklistTemplate = trackerDraft.inputKind === 'checklist' ? parseChecklist(trackerDraft.checklistText) : []
     const item: TrackerItem = {
-      id: crypto.randomUUID(),
+      id: editingTrackerId ?? crypto.randomUUID(),
       module: trackerDraft.module,
       title: trackerDraft.title,
       description: trackerDraft.description,
@@ -650,21 +724,52 @@ function App() {
       restAfterSuccess: Number(trackerDraft.restAfterSuccess),
     }
 
-    const nextItems = [...state.trackerItems, item]
-    const nextOccurrences = state.occurrences.map((occurrence) => {
-      if (occurrence.module !== trackerDraft.module) return occurrence
-      const synthetic = createOccurrence(occurrence.module, occurrence.kind, nextItems, state.occurrences.filter((candidate) => candidate.id !== occurrence.id))
-      return {
-        ...occurrence,
-        entries: {
-          ...occurrence.entries,
-          [item.id]: synthetic.entries[item.id],
-        },
-      }
-    })
+    if (editingTrackerId) {
+      const nextOccurrences = state.occurrences.map((occurrence) => {
+        if (occurrence.module !== item.module) return occurrence
+        const current = occurrence.entries[item.id]
+        if (!current) return occurrence
 
-    patchState({ trackerItems: nextItems, occurrences: nextOccurrences })
-    writeDebugLog('tracker-item-added', { module: trackerDraft.module, title: trackerDraft.title, inputKind: trackerDraft.inputKind, priority: trackerDraft.priority })
+        const checklist = item.inputKind === 'checklist'
+          ? item.checklistTemplate.map((_, index) => current.checklist[index] ?? false)
+          : current.checklist
+
+        const nextEntry = { ...current, checklist }
+        nextEntry.state = deriveState(item, nextEntry)
+
+        return {
+          ...occurrence,
+          entries: {
+            ...occurrence.entries,
+            [item.id]: nextEntry,
+          },
+        }
+      })
+
+      patchState({
+        trackerItems: state.trackerItems.map((candidate) => candidate.id === editingTrackerId ? item : candidate),
+        occurrences: nextOccurrences,
+      })
+      writeDebugLog('tracker-item-updated', { itemId: editingTrackerId, title: item.title, module: item.module })
+    } else {
+      const nextItems = [...state.trackerItems, item]
+      const nextOccurrences = state.occurrences.map((occurrence) => {
+        if (occurrence.module !== trackerDraft.module) return occurrence
+        const synthetic = createOccurrence(occurrence.module, occurrence.kind, nextItems, state.occurrences.filter((candidate) => candidate.id !== occurrence.id))
+        return {
+          ...occurrence,
+          entries: {
+            ...occurrence.entries,
+            [item.id]: synthetic.entries[item.id],
+          },
+        }
+      })
+
+      patchState({ trackerItems: nextItems, occurrences: nextOccurrences })
+      writeDebugLog('tracker-item-added', { module: trackerDraft.module, title: trackerDraft.title, inputKind: trackerDraft.inputKind, priority: trackerDraft.priority })
+    }
+
+    setEditingTrackerId(null)
     setTrackerDraft(defaultTrackerDraft(trackerDraft.module))
     setModalView(null)
   }
@@ -708,15 +813,28 @@ function App() {
   }
 
   function habitHistory(itemId: string) {
-    return habitOccurrences.slice(0, 7).map((occurrence) => ({
-      occurrenceId: occurrence.id,
-      date: occurrence.date ?? '',
-      state: occurrence.entries[itemId]?.state ?? 'unknown',
-    }))
+    return habitOccurrences
+      .filter((occurrence) => {
+        const entry = occurrence.entries[itemId]
+        if (!entry) return false
+        if (entry.state === 'success' || entry.state === 'excused') return true
+        if (entry.score != null) return true
+        if (entry.numericValue != null) return true
+        if (entry.note.trim()) return true
+        if (entry.checklist.some(Boolean)) return true
+        return false
+      })
+      .slice(0, 7)
+      .map((occurrence) => ({
+        occurrenceId: occurrence.id,
+        date: occurrence.date ?? '',
+        state: occurrence.entries[itemId]?.state ?? 'unknown',
+      }))
   }
 
-  function renderTrackerEditorInput(occurrence: TrackerOccurrence, item: TrackerItem) {
-    const entry = occurrence.entries[item.id]
+  function renderTrackerEditorInput(item: TrackerItem) {
+    const entry = trackerResponseDraft
+    if (!entry) return null
 
     if (entry.state === 'rest' || entry.state === 'inactive') {
       return <span className={`pill state-${entry.state}`}>{entryLabel(entry.state)}</span>
@@ -725,9 +843,9 @@ function App() {
     if (item.inputKind === 'tristate') {
       return (
         <div className="tri-state">
-          <button type="button" className={entry.state === 'unknown' ? 'active' : ''} onClick={() => setTriState(occurrence.id, item.id, 'unknown')}>Neutre</button>
-          <button type="button" className={entry.state === 'success' ? 'active' : ''} onClick={() => setTriState(occurrence.id, item.id, 'success')}>Valide</button>
-          <button type="button" className={entry.state === 'excused' ? 'active' : ''} onClick={() => setTriState(occurrence.id, item.id, 'excused')}>Excuse</button>
+          <button type="button" className={entry.state === 'unknown' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'unknown' })}>Neutre</button>
+          <button type="button" className={entry.state === 'success' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'success' })}>Valide</button>
+          <button type="button" className={entry.state === 'excused' ? 'active' : ''} onClick={() => updateTrackerResponseDraft({ ...entry, state: 'excused' })}>Excuse</button>
         </div>
       )
     }
@@ -738,7 +856,8 @@ function App() {
           <span>Reponse</span>
           <select
             value={entry.score == null ? '' : String(entry.score)}
-            onChange={(event) => updateTrackerEntry(occurrence.id, item.id, {
+            onChange={(event) => updateTrackerResponseDraft({
+              ...entry,
               score: event.target.value === '' ? null : Number(event.target.value),
             })}
           >
@@ -762,7 +881,7 @@ function App() {
                 onChange={(event) => {
                   const next = [...entry.checklist]
                   next[index] = event.target.checked
-                  updateTrackerEntry(occurrence.id, item.id, { checklist: next })
+                  updateTrackerResponseDraft({ ...entry, checklist: next })
                 }}
               />
               <span>{label}</span>
@@ -780,7 +899,7 @@ function App() {
             <input
               type="number"
               value={entry.numericValue ?? ''}
-              onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+              onChange={(event) => updateTrackerResponseDraft({ ...entry, numericValue: event.target.value === '' ? null : Number(event.target.value) })}
             />
           </label>
           <span className="muted-inline">{item.target ? `${item.target.mode === 'atLeast' ? '>= ' : item.target.mode === 'atMost' ? '<= ' : '= '}${item.target.value} ${item.target.unit}` : ''}</span>
@@ -791,7 +910,7 @@ function App() {
     return (
       <label className="field">
         <span>Note</span>
-        <textarea value={entry.note} onChange={(event) => updateTrackerEntry(occurrence.id, item.id, { note: event.target.value })} placeholder="Observation, contexte, journal..." />
+        <textarea value={entry.note} onChange={(event) => updateTrackerResponseDraft({ ...entry, note: event.target.value })} placeholder="Observation, contexte, journal..." />
       </label>
     )
   }
@@ -853,9 +972,11 @@ function App() {
     return <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Resultat, apprentissage, synthese..." />
   }
 
-  function openTrackerModal(module: ModuleKey) {
-    setTrackerDraft(defaultTrackerDraft(module))
+  function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
+    setEditingTrackerId(item?.id ?? null)
+    setTrackerDraft(item ? trackerDraftFromItem(item) : defaultTrackerDraft(module))
     setModalView(module)
+    setTrackerMenuId(null)
   }
 
   function openGoalModal() {
@@ -864,6 +985,22 @@ function App() {
   }
 
   function openTrackerEditor(module: ModuleKey, itemId: string, occurrenceId: string, date?: string) {
+    const item = state.trackerItems.find((candidate) => candidate.id === itemId)
+    if (!item) return
+
+    const occurrence = module === 'habits'
+      ? buildHabitOccurrenceForDate(
+          date ?? selectedHabitDate,
+          state.trackerItems,
+          state.occurrences,
+          habitOccurrences.find((candidate) => candidate.date === (date ?? selectedHabitDate)),
+        )
+      : state.occurrences.find((candidate) => candidate.id === occurrenceId)
+
+    if (!occurrence) return
+
+    setTrackerMenuId(null)
+    updateTrackerResponseDraft(cloneEntry(occurrence.entries[itemId]))
     setTrackerEditor({ module, itemId, occurrenceId, date })
     writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId, date })
   }
@@ -873,6 +1010,21 @@ function App() {
       writeDebugLog('tracker-editor-closed', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditor.occurrenceId, date: trackerEditor.date })
     }
     setTrackerEditor(null)
+    updateTrackerResponseDraft(null)
+  }
+
+  function saveTrackerEditor() {
+    const draft = trackerResponseDraftRef.current
+    if (!trackerEditor || !trackerEditorItem || !trackerEditorOccurrence || !draft) return
+    updateTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id, {
+      state: draft.state,
+      score: draft.score,
+      checklist: draft.checklist,
+      numericValue: draft.numericValue,
+      note: draft.note,
+    })
+    writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
+    closeTrackerEditor()
   }
 
   return (
@@ -938,8 +1090,23 @@ function App() {
                           <span className={`pill state-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}</span>
                         </div>
                       </div>
-                      <span className="tracker-open-hint">Renseigner</span>
                     </button>
+                    <div className="tracker-card-actions">
+                      <button
+                        type="button"
+                        className="ghost-icon tracker-menu-button"
+                        aria-label={`Options ${item.title}`}
+                        onClick={() => setTrackerMenuId((current) => current === item.id ? null : item.id)}
+                      >
+                        ⋮
+                      </button>
+                      {trackerMenuId === item.id && (
+                        <div className="tracker-menu">
+                          <button type="button" onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}>Repondre</button>
+                          <button type="button" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {item.description && <p className="compact-description">{item.description}</p>}
@@ -1002,8 +1169,23 @@ function App() {
                           <span className={`pill state-${selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown'}`}>{entryLabel(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}</span>
                         </div>
                       </div>
-                      <span className="tracker-open-hint">Renseigner</span>
                     </button>
+                    <div className="tracker-card-actions">
+                      <button
+                        type="button"
+                        className="ghost-icon tracker-menu-button"
+                        aria-label={`Options ${item.title}`}
+                        onClick={() => setTrackerMenuId((current) => current === item.id ? null : item.id)}
+                      >
+                        ⋮
+                      </button>
+                      {trackerMenuId === item.id && (
+                        <div className="tracker-menu">
+                          <button type="button" disabled={!selectedPerformanceOccurrence} onClick={() => selectedPerformanceOccurrence && openTrackerEditor('performances', item.id, selectedPerformanceOccurrence.id)}>Repondre</button>
+                          <button type="button" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
                   {!selectedPerformanceOccurrence && <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
@@ -1063,18 +1245,21 @@ function App() {
               </div>
               {trackerEditorItem.description && <p className="compact-description">{trackerEditorItem.description}</p>}
               <div className="tracker-editor-body">
-                {renderTrackerEditorInput(trackerEditorOccurrence, trackerEditorItem)}
+                {renderTrackerEditorInput(trackerEditorItem)}
+                <div className="editor-actions">
+                  <button type="button" className="ghost-button" onClick={saveTrackerEditor}>Valider</button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {modalView && (
-          <div className="modal-backdrop" role="presentation" onClick={() => setModalView(null)}>
+          <div className="modal-backdrop" role="presentation" onClick={() => { setModalView(null); setEditingTrackerId(null) }}>
             <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="modal-head">
-                <h3>{modalView === 'goals' ? 'Ajouter un objectif' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
-                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={() => setModalView(null)}>×</button>
+                <h3>{modalView === 'goals' ? 'Ajouter un objectif' : editingTrackerId ? 'Modifier la consigne' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
+                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={() => { setModalView(null); setEditingTrackerId(null) }}>×</button>
               </div>
 
               {modalView === 'goals' ? (
@@ -1110,13 +1295,13 @@ function App() {
                       <input value={goalDraft.targetUnit} onChange={(event) => setGoalDraft({ ...goalDraft, targetUnit: event.target.value })} placeholder="Unite" />
                     </>
                   )}
-                  <button type="submit">Ajouter</button>
+                  <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
                 </form>
               ) : (
-                <form className="form-grid compact-form" onSubmit={addTrackerItem}>
+                <form className="form-grid compact-form" onSubmit={saveTrackerItem}>
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: modalView })} placeholder="Titre" />
                   <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: modalView })} placeholder="Description" />
-                  <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
+                  <select value={trackerDraft.inputKind} disabled={editingTrackerId != null} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
                     <option value="tristate">Validation simple</option>
                     <option value="score">Score 0-4</option>
                     <option value="checklist">Checklist</option>
@@ -1167,7 +1352,7 @@ function App() {
                       <input value={trackerDraft.targetUnit} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetUnit: event.target.value, module: modalView })} placeholder="Unite" />
                     </>
                   )}
-                  <button type="submit">Ajouter</button>
+                  <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
                 </form>
               )}
             </div>
