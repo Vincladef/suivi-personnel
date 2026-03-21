@@ -167,9 +167,11 @@ textarea {
   padding: 1rem;
   display: grid;
   gap: 1rem;
+  justify-items: center;
 }
 
 .page-head {
+  width: min(980px, 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -229,11 +231,26 @@ textarea {
 }
 
 .surface-panel {
+  width: min(980px, 100%);
+  min-height: 74vh;
+  grid-template-rows: auto 1fr;
   align-content: start;
 }
 
 .surface-actions {
   flex: 1;
+}
+
+.tracker-list,
+.goal-list {
+  height: 100%;
+  align-content: start;
+}
+
+.tracker-list,
+.goal-list {
+  height: 100%;
+  align-content: start;
 }
 
 .field {
@@ -368,6 +385,46 @@ small,
 .empty-panel p {
   margin: 0;
   color: #697486;
+}
+
+.empty-panel {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.empty-panel h3 {
+  font-size: 1.35rem;
+}
+
+.empty-panel p {
+  max-width: 30ch;
+}
+
+.empty-add {
+  margin-top: 0.4rem;
+}
+
+.empty-panel {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.empty-panel h3 {
+  font-size: 1.35rem;
+}
+
+.empty-panel p {
+  max-width: 30ch;
+}
+
+.empty-add {
+  margin-top: 0.4rem;
 }
 
 .history-strip {
