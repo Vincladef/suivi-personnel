@@ -17,7 +17,6 @@ test('can add a personal habit and track it on the current day without creating 
   await page.getByRole('button', { name: 'Ajouter une habitude' }).click()
 
   await page.getByPlaceholder('Titre').fill('Sport')
-  await page.getByPlaceholder('Description').fill('30 minutes de mouvement volontaire.')
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
 
   await expect(page.getByText('Sport', { exact: true })).toBeVisible()
@@ -35,7 +34,6 @@ test('can add a goal from the empty state', async ({ page }) => {
   await page.getByRole('button', { name: 'Ajouter un objectif' }).click()
 
   await page.getByPlaceholder('Titre').fill('Boucler la spec produit')
-  await page.getByPlaceholder('Description').fill('Objectif ajoute depuis le test E2E.')
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click()
 
   await expect(page.getByText('Boucler la spec produit', { exact: true })).toBeVisible()

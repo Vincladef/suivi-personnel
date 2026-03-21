@@ -1726,7 +1726,6 @@ function App() {
                 </div>
                 <button type="button" className="ghost-icon" aria-label="Fermer" onClick={closeTrackerEditor}>×</button>
               </div>
-              {trackerEditorItem.description && <p className="compact-description">{trackerEditorItem.description}</p>}
               <div className="tracker-editor-body">
                 {renderTrackerEditorInput(trackerEditorItem)}
                 <div className="editor-actions">
@@ -1748,7 +1747,6 @@ function App() {
               {modalView === 'goals' ? (
                 <form className="form-grid compact-form" onSubmit={addGoal}>
                   <input required value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} placeholder="Titre" />
-                  <textarea value={goalDraft.description} onChange={(event) => setGoalDraft({ ...goalDraft, description: event.target.value })} placeholder="Description" />
                   <select value={goalDraft.horizon} onChange={(event) => setGoalDraft({ ...goalDraft, horizon: event.target.value as GoalHorizon })}>
                     {horizonOrder.map((horizon) => <option key={horizon} value={horizon}>{horizonLabel(horizon)}</option>)}
                   </select>
@@ -1789,7 +1787,6 @@ function App() {
               ) : (
                 <form className="form-grid compact-form" onSubmit={saveTrackerItem}>
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: modalView })} placeholder="Titre" />
-                  <textarea value={trackerDraft.description} onChange={(event) => setTrackerDraft({ ...trackerDraft, description: event.target.value, module: modalView })} placeholder="Description" />
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
                     <option value="tristate">Oui / Non</option>
                     <option value="score">Echelle qualitative</option>
@@ -1826,19 +1823,21 @@ function App() {
                       )}
                     </>
                   )}
-                  {modalView === 'habits' && (
-                    <label className="field">
-                      <span>Jours de repos automatiques</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={trackerDraft.restAfterSuccess}
-                        onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
-                        placeholder="Nombre de jours"
-                      />
-                      <small className="muted-inline">Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.</small>
-                    </label>
-                  )}
+                  <label className="field">
+                    <span>{modalView === 'habits' ? 'Jours de repos automatiques' : 'Iterations de repos automatiques'}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={trackerDraft.restAfterSuccess}
+                      onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
+                      placeholder={modalView === 'habits' ? 'Nombre de jours' : 'Nombre d iterations'}
+                    />
+                    <small className="muted-inline">
+                      {modalView === 'habits'
+                        ? 'Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.'
+                        : 'Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre d iterations.'}
+                    </small>
+                  </label>
                   {trackerDraft.inputKind === 'checklist' && renderChecklistDraftEditor(
                     'tracker-draft',
                     trackerDraft.checklistItems,
