@@ -1002,7 +1002,7 @@ function App() {
     <div className="shell compact-shell">
       <aside className="sidebar compact-sidebar">
         <div className="brand compact-brand">
-          <div className="brand-mark">🌀</div>
+          <div className="brand-mark">DS</div>
           <div>
             <h1>Application de suivi</h1>
             <p>{activeHabitsToday.length} habitudes · {activePerformancesNow.length} performances · {sortedGoals.length} objectifs</p>
@@ -1045,7 +1045,7 @@ function App() {
         <section className="topbar panel">
           <div>
             <span className="eyebrow">{view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : 'Objectifs'}</span>
-            <h2>{view === 'habits' ? 'Selectionne un jour et remplis chaque consigne.' : view === 'performances' ? 'Travaille par iteration, avec peu d options visibles.' : 'Garde les echeances et rappels sous controle.'}</h2>
+            <div><h2>{view === 'habits' ? 'Une vue journaliere nette, avec historique integre.' : view === 'performances' ? 'Des iterations simples, lisibles et sans bruit.' : 'Des echeances calmes, mais visibles au bon moment.'}</h2><p className="topbar-copy">Interface compacte, menus discrets, cartes plus nettes et lecture plus editoriale.</p></div>
           </div>
           <div className="status-pills">
             <span className="ghost-pill">Local-first</span>
