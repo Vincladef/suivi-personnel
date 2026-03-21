@@ -372,7 +372,7 @@ function entryLabelForInput(inputKind: InputKind, state: EntryState, score?: num
     return match?.label ?? ''
   }
   if (inputKind === 'checklist') {
-    return { success: 'Complete', failed: 'Partiel', unknown: '', rest: 'Repos', inactive: 'Non concerne', excused: 'Excuse' }[state]
+    return ''
   }
   if (inputKind === 'numeric') {
     return { success: 'Atteint', failed: 'Non atteint', unknown: '', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
