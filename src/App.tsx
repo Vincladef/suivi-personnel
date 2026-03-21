@@ -100,6 +100,7 @@ type GoalDraft = {
 const storageKey = 'application-de-suivi-v2'
 const today = '2026-03-21'
 const todayDate = new Date(`${today}T00:00:00`)
+const longDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
 const priorityOrder: Priority[] = ['high', 'medium', 'low', 'archived']
 const horizonOrder: GoalHorizon[] = ['week', 'month', 'quarter', 'year', 'life']
@@ -245,6 +246,14 @@ function daysBetween(start: string, end: string) {
   return Math.round((b - a) / 86400000)
 }
 
+function formatLongDate(date: string | null | undefined) {
+  if (!date) {
+    return 'Aucun jour'
+  }
+
+  return longDateFormatter.format(new Date(`${date}T12:00:00`))
+}
+
 function createOccurrence(
   module: ModuleKey,
   kind: OccurrenceKind,
@@ -285,7 +294,7 @@ function createOccurrence(
       module,
       kind,
       label: kind === 'standard'
-        ? new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${occurrenceDate}T12:00:00`))
+        ? formatLongDate(occurrenceDate)
         : `Bilan semaine ${reviewCount + 1}`,
       key,
       date: occurrenceDate,
@@ -453,6 +462,10 @@ function App() {
   const selectedHabitOccurrence = habitOccurrences.find((occurrence) => occurrence.id === habitOccurrenceId) ?? habitOccurrences[0]
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
   const selectedHabitDate = selectedHabitOccurrence?.date ?? habitOccurrences[0]?.date ?? today
+  const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
+  const selectedHabitIndex = selectedHabitOccurrence ? habitOccurrences.findIndex((occurrence) => occurrence.id === selectedHabitOccurrence.id) : -1
+  const previousHabitOccurrence = selectedHabitIndex >= 0 ? habitOccurrences[selectedHabitIndex + 1] : undefined
+  const nextHabitOccurrence = selectedHabitIndex > 0 ? habitOccurrences[selectedHabitIndex - 1] : undefined
 
   const sortedGoals = sortGoals(state.goals)
   const visibleGoals = sortedGoals.filter((goal) => {
@@ -656,10 +669,10 @@ function App() {
     }
   }
 
-  function selectHabitDate(date: string) {
-    const match = habitOccurrences.find((occurrence) => occurrence.date === date)
-    if (match) {
-      setHabitOccurrenceId(match.id)
+  function stepHabitDate(direction: 'previous' | 'next') {
+    const target = direction === 'previous' ? previousHabitOccurrence : nextHabitOccurrence
+    if (target) {
+      setHabitOccurrenceId(target.id)
     }
   }
 
@@ -827,7 +840,7 @@ function App() {
         </nav>
 
         <div className="status-pills">
-          <span className="ghost-pill">Jour: {selectedHabitDate}</span>
+          <span className="ghost-pill">Jour: {selectedHabitDateLabel}</span>
           <span className="ghost-pill">Rappels: {dueTodayGoals.length}</span>
         </div>
 
@@ -883,10 +896,14 @@ function App() {
               </div>
 
               <div className="toolbar compact-toolbar">
-                <label className="field">
+                <div className="date-nav">
                   <span>Jour</span>
-                  <input type="date" value={selectedHabitDate} onChange={(event) => selectHabitDate(event.target.value)} />
-                </label>
+                  <div className="date-nav-controls">
+                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('previous')} disabled={!previousHabitOccurrence} aria-label="Jour precedent">‹</button>
+                    <strong>{selectedHabitDateLabel}</strong>
+                    <button type="button" className="date-arrow" onClick={() => stepHabitDate('next')} disabled={!nextHabitOccurrence} aria-label="Jour suivant">›</button>
+                  </div>
+                </div>
                 <label className="field">
                   <span>Priorite</span>
                   <select value={habitPriorityFilter} onChange={(event) => setHabitPriorityFilter(event.target.value as 'all' | Priority)}>

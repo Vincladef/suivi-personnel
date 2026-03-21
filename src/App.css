@@ -255,6 +255,38 @@ summary,
   min-width: 164px;
 }
 
+.date-nav {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(360px, 100%);
+}
+
+.date-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.date-nav-controls strong {
+  font-size: 1rem;
+  color: #203047;
+}
+
+.date-arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.date-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .field span,
 .history-label,
 .eyebrow {
