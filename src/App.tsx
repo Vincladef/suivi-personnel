@@ -327,12 +327,13 @@ function deriveLeafState(
     return 'failed'
   }
   if (inputKind === 'checklist') {
+    if (entry.state === 'failed' && entry.checklist.every((value) => value === 'unknown')) return 'failed'
     if (entry.checklist.length === 0 || entry.checklist.every((value) => value === 'unknown')) return 'unknown'
-    if (entry.checklist.every((value) => value === 'done' || value === 'excused')) {
-      return entry.checklist.some((value) => value === 'done') ? 'success' : 'excused'
-    }
-    if (entry.checklist.some((value) => value === 'failed')) return 'failed'
-    return 'unknown'
+    const completedCount = entry.checklist.filter((value) => value === 'done' || value === 'excused').length
+    const completionRatio = completedCount / entry.checklist.length
+    if (completionRatio === 1) return entry.checklist.some((value) => value === 'done') ? 'success' : 'excused'
+    if (completionRatio >= 0.5) return 'excused'
+    return 'failed'
   }
   if (inputKind === 'numeric') {
     if (entry.numericValue == null || !target) return 'unknown'
@@ -1514,7 +1515,7 @@ function App() {
     const draft = trackerResponseDraftRef.current
     if (!trackerEditor || !trackerEditorItem || !trackerEditorOccurrence || !draft) return
     const result = updateTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id, {
-      state: draft.state,
+      state: trackerEditorItem.inputKind === 'checklist' && draft.checklist.every((value) => value === 'unknown') ? 'failed' : draft.state,
       score: draft.score,
       checklist: draft.checklist,
       numericValue: draft.numericValue,
