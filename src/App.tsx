@@ -774,7 +774,7 @@ function createOccurrence(
 }
 
 function seedState(): AppState {
-  return { trackerItems: seedTrackerItems, occurrences: [], goals: seedGoals }
+  return { trackerItems: seedTrackerItems, occurrences: [], goals: seedGoals, goalPeriodNotes: {} }
 }
 
 function writeDebugLog(event: string, details?: Record<string, unknown>) {
@@ -908,6 +908,7 @@ function normalizeState(raw: Partial<AppState>): AppState {
     trackerItems,
     occurrences,
     goals,
+    goalPeriodNotes: raw.goalPeriodNotes ?? {},
     lastTrackerCategory: raw.lastTrackerCategory ?? '',
     lastPerformanceCategoryFilter: raw.lastPerformanceCategoryFilter ?? '',
   }
@@ -1788,9 +1789,27 @@ function App() {
   }
 
   function renderGoalEditorInput(goal: Goal) {
+    const goalEntry = { state: goal.status, score: goal.score, checklist: goal.checklist, numericValue: goal.numericValue, note: goal.note }
     return (
       <div className="editor-grid compact-editor-grid">
-        {renderLeafResponseEditor(goal.resultKind, goal.target, { state: goal.status, score: goal.score, checklist: goal.checklist, numericValue: goal.numericValue, note: goal.note }, goal.checklistTemplate, (patch) => updateGoal(goal.id, patch))}
+        {renderLeafResponseEditor(goal.resultKind, goal.target, goalEntry, goal.checklistTemplate, (patch) => {
+          const next = { ...goalEntry, ...patch }
+          const nextStatus = deriveState({
+            id: goal.id,
+            module: 'habits',
+            title: goal.title,
+            description: goal.description,
+            category: '',
+            inputKind: goal.resultKind,
+            priority: goal.priority,
+            checklistTemplate: goal.checklistTemplate,
+            target: goal.target,
+            frequency: null,
+            restAfterSuccess: 0,
+            subItems: [],
+          }, next as TrackerEntry)
+          updateGoal(goal.id, { ...patch, status: nextStatus })
+        })}
         {goal.subItems.length > 0 && (
           <div className="subitem-group compact-subitem-group">
             <div className="subitem-list">
