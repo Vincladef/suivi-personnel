@@ -1633,7 +1633,6 @@ function App() {
       if (!goal.checklist.length) return 'unknown'
       const completedCount = goal.checklist.filter((item) => item === 'done' || item === 'excused').length
       const completionRatio = completedCount / goal.checklist.length
-      if (completionRatio >= 1) return 'success'
       if (completionRatio >= 0.75) return 'success'
       if (completionRatio >= 0.5) return 'neutral'
       if (completionRatio > 0) return 'failed'
