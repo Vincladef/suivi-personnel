@@ -2187,6 +2187,9 @@ function App() {
           {isAdmin && <button type="button" className={`nav-link ${view === 'admin' ? 'active' : ''}`} onClick={() => { setView('admin'); setSidebarOpen(false) }}>Admin</button>}
         </nav>
         <div className="sidebar-foot">
+          <button type="button" className="ghost-button export-sheet-button" onClick={() => void exportGoogleSheet()} disabled={sheetExportLoading}>
+            {sheetExportLoading ? 'Ouverture...' : 'Google Sheets'}
+          </button>
           <span className="muted-inline">{currentUser.email}</span>
           <button type="button" className="ghost-button" onClick={logoutUser}>Se deconnecter</button>
         </div>
@@ -2201,11 +2204,6 @@ function App() {
               <span />
             </button>
             <h2>{activeViewTitle}</h2>
-          </div>
-          <div className="page-head-actions">
-            <button type="button" className="ghost-button export-sheet-button" onClick={() => void exportGoogleSheet()} disabled={sheetExportLoading}>
-              {sheetExportLoading ? 'Ouverture...' : 'Google Sheets'}
-            </button>
           </div>
         </header>
 

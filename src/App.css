@@ -207,12 +207,8 @@ textarea {
   align-items: center;
 }
 
-.page-head-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .export-sheet-button {
+  width: 100%;
   min-width: 144px;
   padding: 0.78rem 0.95rem;
   background: rgba(255, 255, 255, 0.78);
@@ -1473,11 +1469,6 @@ small,
     gap: 0.8rem;
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .page-head-actions,
-  .export-sheet-button {
-    width: 100%;
   }
 }
 
