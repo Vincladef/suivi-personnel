@@ -1107,15 +1107,6 @@ function App() {
     setState((current) => ({ ...current, ...patch }))
   }
 
-  function createNewOccurrence(module: ModuleKey, kind: OccurrenceKind) {
-    const occurrence = createOccurrence(module, kind, state.trackerItems, state.occurrences)
-    patchState({ occurrences: [...state.occurrences, occurrence] })
-    writeDebugLog('create-occurrence', { module, kind, occurrenceId: occurrence.id, date: occurrence.date, key: occurrence.key })
-    if (module === 'performances') {
-      setPerformanceOccurrenceId(occurrence.id)
-    }
-  }
-
   function updateTrackerEntry(occurrenceId: string, itemId: string, patch: Partial<TrackerEntry>) {
     const item = state.trackerItems.find((candidate) => candidate.id === itemId)!
     const result = buildUpdatedOccurrencesAfterEntryPatch(
@@ -1633,6 +1624,20 @@ function App() {
         token: Date.now(),
       })
     }
+
+    if (trackerEditor.module === 'performances' && result) {
+      const hasNextOccurrence = result.occurrences.some((occurrence) => (
+        occurrence.module === 'performances' && occurrence.kind === 'standard' && occurrence.key > trackerEditorOccurrence.key
+      ))
+
+      if (!hasNextOccurrence) {
+        const nextOccurrence = createOccurrence('performances', 'standard', state.trackerItems, result.occurrences)
+        patchState({ occurrences: [...result.occurrences, nextOccurrence] })
+        setPerformanceOccurrenceId(nextOccurrence.id)
+        writeDebugLog('performance-next-iteration-created-on-save', { fromOccurrenceId: trackerEditorOccurrence.id, nextOccurrenceId: nextOccurrence.id })
+      }
+    }
+
     writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
     closeTrackerEditor()
   }
@@ -2021,9 +2026,7 @@ function App() {
         {view === 'performances' && (
           <section className="panel surface-panel">
             <div className="surface-head">
-              <div className="surface-actions">
-                <button type="button" className="ghost-button" onClick={() => createNewOccurrence('performances', 'standard')}>Nouvelle iteration</button>
-              </div>
+              <div className="surface-actions" />
               <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
             </div>
 
@@ -2073,7 +2076,7 @@ function App() {
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
-                  {!selectedPerformanceOccurrence && <p className="muted-inline">Une iteration sera creee automatiquement a la premiere saisie.</p>}
+                  {!selectedPerformanceOccurrence && <p className="muted-inline">La premiere iteration sera creee automatiquement a la premiere saisie.</p>}
                 </article>
               )})}
             </div>
