@@ -200,6 +200,20 @@ async function exchangeRefreshToken({ clientId, clientSecret, refreshToken }) {
   return response.json()
 }
 
+async function createSpreadsheetMetadataSnapshot(spreadsheetId, accessToken) {
+  const response = await fetch(`${SHEETS_BASE}/${spreadsheetId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Spreadsheet fetch failed (${response.status}): ${await response.text()}`)
+  }
+
+  return response.json()
+}
+
 async function createSpreadsheet(title, accessToken) {
   const response = await fetch(SHEETS_BASE, {
     method: 'POST',
@@ -244,104 +258,73 @@ async function batchUpdateSpreadsheetValues(spreadsheetId, data, accessToken) {
   return response.json()
 }
 
-async function styleSpreadsheet(spreadsheetId, accessToken) {
-  const response = await fetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
+async function styleSpreadsheet(spreadsheet, accessToken) {
+  const styleByTitle = {
+    Habitudes: {
+      backgroundColor: { red: 0.86, green: 0.93, blue: 0.88 },
+      foregroundColor: { red: 0.18, green: 0.28, blue: 0.2 },
+      endIndex: 40,
+    },
+    Performances: {
+      backgroundColor: { red: 0.88, green: 0.91, blue: 0.98 },
+      foregroundColor: { red: 0.2, green: 0.25, blue: 0.42 },
+      endIndex: 40,
+    },
+    Objectifs: {
+      backgroundColor: { red: 0.98, green: 0.91, blue: 0.84 },
+      foregroundColor: { red: 0.39, green: 0.24, blue: 0.16 },
+      endIndex: 20,
+    },
+  }
+
+  const requests = (spreadsheet.sheets ?? []).flatMap((sheet) => {
+    const title = sheet.properties?.title
+    const sheetId = sheet.properties?.sheetId
+    const style = title ? styleByTitle[title] : null
+    if (sheetId == null || !style) return []
+
+    return [
+      {
+        repeatCell: {
+          range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: style.backgroundColor,
+              textFormat: { bold: true, foregroundColor: style.foregroundColor },
+              horizontalAlignment: 'CENTER',
+            },
+          },
+          fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+        },
+      },
+      {
+        updateSheetProperties: {
+          properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+          fields: 'gridProperties.frozenRowCount',
+        },
+      },
+      {
+        autoResizeDimensions: {
+          dimensions: {
+            sheetId,
+            dimension: 'COLUMNS',
+            startIndex: 0,
+            endIndex: style.endIndex,
+          },
+        },
+      },
+    ]
+  })
+
+  if (requests.length === 0) return null
+
+  const response = await fetch(`${SHEETS_BASE}/${spreadsheet.spreadsheetId}:batchUpdate`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      requests: [
-        {
-          repeatCell: {
-            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: { red: 0.86, green: 0.93, blue: 0.88 },
-                textFormat: { bold: true, foregroundColor: { red: 0.18, green: 0.28, blue: 0.2 } },
-                horizontalAlignment: 'CENTER',
-              },
-            },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: 1, startRowIndex: 0, endRowIndex: 1 },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: { red: 0.88, green: 0.91, blue: 0.98 },
-                textFormat: { bold: true, foregroundColor: { red: 0.2, green: 0.25, blue: 0.42 } },
-                horizontalAlignment: 'CENTER',
-              },
-            },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: 2, startRowIndex: 0, endRowIndex: 1 },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: { red: 0.98, green: 0.91, blue: 0.84 },
-                textFormat: { bold: true, foregroundColor: { red: 0.39, green: 0.24, blue: 0.16 } },
-                horizontalAlignment: 'CENTER',
-              },
-            },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
-          },
-        },
-        {
-          updateSheetProperties: {
-            properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
-            fields: 'gridProperties.frozenRowCount',
-          },
-        },
-        {
-          updateSheetProperties: {
-            properties: { sheetId: 1, gridProperties: { frozenRowCount: 1 } },
-            fields: 'gridProperties.frozenRowCount',
-          },
-        },
-        {
-          updateSheetProperties: {
-            properties: { sheetId: 2, gridProperties: { frozenRowCount: 1 } },
-            fields: 'gridProperties.frozenRowCount',
-          },
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: {
-              sheetId: 0,
-              dimension: 'COLUMNS',
-              startIndex: 0,
-              endIndex: 40,
-            },
-          },
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: {
-              sheetId: 1,
-              dimension: 'COLUMNS',
-              startIndex: 0,
-              endIndex: 40,
-            },
-          },
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: {
-              sheetId: 2,
-              dimension: 'COLUMNS',
-              startIndex: 0,
-              endIndex: 20,
-            },
-          },
-        },
-      ],
-    }),
+    body: JSON.stringify({ requests }),
   })
 
   if (!response.ok) {
@@ -585,8 +568,9 @@ export default async function handler(request) {
     const existingSheet = profile.googleSheet
 
     if (existingSheet?.spreadsheetId && existingSheet?.url) {
+      const refreshedSpreadsheet = await createSpreadsheetMetadataSnapshot(existingSheet.spreadsheetId, googleToken.access_token)
       await batchUpdateSpreadsheetValues(existingSheet.spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
-      await styleSpreadsheet(existingSheet.spreadsheetId, googleToken.access_token)
+      await styleSpreadsheet(refreshedSpreadsheet, googleToken.access_token)
       await shareSpreadsheet(existingSheet.spreadsheetId, authUser.email, googleToken.access_token)
 
       await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
@@ -614,7 +598,7 @@ export default async function handler(request) {
     const url = sheetUrlFromId(spreadsheetId)
 
     await batchUpdateSpreadsheetValues(spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
-    await styleSpreadsheet(spreadsheetId, googleToken.access_token)
+    await styleSpreadsheet(spreadsheet, googleToken.access_token)
     await shareSpreadsheet(spreadsheetId, authUser.email, googleToken.access_token)
 
     await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
