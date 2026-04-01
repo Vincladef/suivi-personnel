@@ -1083,7 +1083,8 @@ function buildHabitOccurrenceForDate(
         Object.entries(baseEntries).map(([itemId, baseEntry]) => {
           const currentEntry = source.entries[itemId]
           if (!currentEntry) return [itemId, baseEntry]
-          if (baseEntry.state === 'rest' || baseEntry.state === 'inactive') return [itemId, { ...currentEntry, state: baseEntry.state }]
+          if (baseEntry.state === 'inactive') return [itemId, { ...currentEntry, state: 'inactive' as EntryState }]
+          if (baseEntry.state === 'rest') return [itemId, { ...currentEntry, state: 'rest' as EntryState }]
           const item = items.find((candidate) => candidate.id === itemId)!
           return [itemId, { ...currentEntry, state: deriveState(item, currentEntry) }]
         }),
