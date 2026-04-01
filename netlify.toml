@@ -9,3 +9,7 @@
 [[scheduled.functions]]
   name = "send-goal-reminders"
   cron = "0 8 * * *"
+
+[[scheduled.functions]]
+  name = "send-push-reminders"
+  cron = "*/15 * * * *"
