@@ -2064,3 +2064,15 @@ small,
 .week-note-inline > strong {
   margin: 0;
 }
+
+
+.minimal-week-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.minimal-week-head .subtle-note-button {
+  margin-left: auto;
+}
