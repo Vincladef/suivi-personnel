@@ -464,11 +464,16 @@ small,
 }
 
 .fab-button {
-  width: 50px;
-  height: 50px;
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 40;
+  width: 58px;
+  height: 58px;
   padding: 0;
   display: grid;
   place-items: center;
+  border-radius: 18px;
   background: linear-gradient(135deg, #1f2a3f, #506887);
   color: #f8f6f1;
   font-size: 1.55rem;
@@ -923,13 +928,8 @@ small,
   }
 
   .surface-head > .fab-button {
-    position: fixed;
-    right: 1rem;
-    bottom: 1rem;
-    z-index: 25;
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
   .main {
@@ -952,6 +952,7 @@ small,
 
   .surface-panel {
     min-height: calc(100vh - 7.5rem);
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
   .page-head {
@@ -964,9 +965,9 @@ small,
   }
 
   .fab-button {
-    width: 46px;
-    height: 46px;
-    font-size: 1.4rem;
+    width: 58px;
+    height: 58px;
+    font-size: 1.45rem;
   }
 
   .modal-backdrop {
@@ -1470,13 +1471,8 @@ small,
 
 @media (max-width: 720px) {
   .surface-head > .fab-button {
-    position: fixed;
-    right: 1rem;
-    bottom: 1rem;
-    z-index: 25;
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
   .date-nav-controls {
