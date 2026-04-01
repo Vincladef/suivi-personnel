@@ -118,29 +118,53 @@ function formatLocalTime(now, timeZone) {
   return `${get('hour')}:${get('minute')}`
 }
 
-function dueTodayGoalCount(goals, today) {
-  return (goals ?? []).filter((goal) => goal?.dueDate === today).length
-}
-
-function activeHabitCount(items) {
-  return (items ?? []).filter((item) => item?.module === 'habits').length
-}
-
-function extractLatestTrackingDate(state) {
-  const dates = []
-  for (const occurrence of state?.occurrences ?? []) {
-    if (occurrence?.date) dates.push(occurrence.date)
-  }
-  for (const goal of state?.goals ?? []) {
-    if (goal?.status && goal.status !== 'unknown' && goal?.dueDate) dates.push(goal.dueDate)
-  }
-  return dates.sort().at(-1) ?? null
+function isHabitActive(item, date) {
+  const day = new Date(`${date}T00:00:00`).getDay()
+  if (!item?.frequency || item.frequency.kind === 'daily') return true
+  if (item.frequency.kind === 'weekdays') return day >= 1 && day <= 5
+  return (item.frequency.days ?? []).includes(day)
 }
 
 function daysBetween(fromDate, toDate) {
   const start = new Date(`${fromDate}T12:00:00Z`)
   const end = new Date(`${toDate}T12:00:00Z`)
   return Math.round((end.getTime() - start.getTime()) / 86400000)
+}
+
+function latestSuccessDateForHabit(itemId, occurrences) {
+  return (occurrences ?? [])
+    .filter((occurrence) => occurrence?.module === 'habits' && occurrence?.kind === 'standard' && occurrence?.date)
+    .sort((left, right) => (right.key ?? 0) - (left.key ?? 0))
+    .find((occurrence) => occurrence.entries?.[itemId]?.state === 'success')?.date ?? null
+}
+
+function dueTodayGoalCount(goals, today) {
+  return (goals ?? []).filter((goal) => goal?.dueDate === today).length
+}
+
+function dueTodayHabitCount(items, occurrences, today) {
+  return (items ?? []).filter((item) => {
+    if (item?.module !== 'habits') return false
+    if (!isHabitActive(item, today)) return false
+    const lastSuccess = latestSuccessDateForHabit(item.id, occurrences)
+    const inRest = lastSuccess && Number(item.restAfterSuccess || 0) > 0 && daysBetween(lastSuccess, today) > 0 && daysBetween(lastSuccess, today) <= Number(item.restAfterSuccess || 0)
+    return !inRest
+  }).length
+}
+
+function extractLatestTrackingDate(state) {
+  const dates = []
+  for (const occurrence of state?.occurrences ?? []) {
+    if (!occurrence?.date) continue
+    const entries = Object.values(occurrence.entries ?? {})
+    if (entries.some((entry) => entry?.state && entry.state !== 'unknown' && entry.state !== 'rest' && entry.state !== 'inactive')) {
+      dates.push(occurrence.date)
+    }
+  }
+  for (const goal of state?.goals ?? []) {
+    if (goal?.status && goal.status !== 'unknown' && goal?.dueDate) dates.push(goal.dueDate)
+  }
+  return dates.sort().at(-1) ?? null
 }
 
 function shouldSendNow(settings, meta, now) {
@@ -189,7 +213,7 @@ export default async function handler() {
       const stateDoc = await firestoreGetDocument(projectId, `appStates/${uid}`, token.access_token)
       const state = stateDoc ? firestoreDocumentToObject(stateDoc).state || {} : {}
       const lastTrackingDate = extractLatestTrackingDate(state)
-      const habitCount = activeHabitCount(state.trackerItems)
+      const habitCount = dueTodayHabitCount(state.trackerItems, state.occurrences, localDate)
       const goalCount = dueTodayGoalCount(state.goals, localDate)
       const trackedToday = lastTrackingDate === localDate
       const inactiveDays = lastTrackingDate ? daysBetween(lastTrackingDate, localDate) : 999

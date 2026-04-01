@@ -1073,6 +1073,7 @@ function App() {
   })
   const [notificationStatusMessage, setNotificationStatusMessage] = useState('')
   const [notificationSaving, setNotificationSaving] = useState(false)
+  const [notificationTesting, setNotificationTesting] = useState(false)
   const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
@@ -2169,6 +2170,30 @@ function App() {
     }).catch(() => undefined)
   }
 
+  async function sendPushTest() {
+    if (!currentUser) return
+    setNotificationTesting(true)
+    setNotificationStatusMessage('')
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('Service worker indisponible.')
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.getSubscription()
+      if (!subscription) throw new Error('Active d abord les notifications.')
+      const response = await fetch('/.netlify/functions/push-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      })
+      const payload = await response.json() as { ok?: boolean; error?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Test push impossible.')
+      setNotificationStatusMessage('Notification de test envoyee.')
+    } catch (error) {
+      setNotificationStatusMessage(error instanceof Error ? error.message : 'Test push impossible.')
+    } finally {
+      setNotificationTesting(false)
+    }
+  }
+
   async function saveNotificationSettings(nextSettings: NotificationSettings) {
     if (!currentUser) return
     setNotificationSaving(true)
@@ -2509,6 +2534,16 @@ function App() {
                     disabled={!notificationSettings.enabled || !notificationSettings.inactiveReminderEnabled || notificationSaving}
                   />
                 </label>
+                <div className="notification-actions">
+                  <button
+                    type="button"
+                    className="ghost-button compact-action"
+                    onClick={() => void sendPushTest()}
+                    disabled={notificationTesting || !notificationSettings.enabled}
+                  >
+                    {notificationTesting ? 'Envoi...' : 'Envoyer un test'}
+                  </button>
+                </div>
                 <p className="muted-inline install-app-hint">Fuseau horaire detecte : {notificationSettings.timezone}. Permission : {notificationPermissionState}.</p>
                 {notificationStatusMessage && <p className="muted-inline install-app-hint">{notificationStatusMessage}</p>}
               </div>

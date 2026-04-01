@@ -1814,3 +1814,32 @@ small,
   font-size: 0.78rem;
   line-height: 1.35;
 }
+
+.notification-panel {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.8rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.settings-toggle {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  color: rgba(247,244,237,0.9);
+  font-size: 0.94rem;
+}
+.settings-field {
+  display: grid;
+  gap: 0.35rem;
+}
+.settings-field span {
+  color: rgba(247,244,237,0.78);
+  font-size: 0.9rem;
+}
+.notification-actions {
+  display: flex;
+  justify-content: flex-start;
+}
