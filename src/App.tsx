@@ -551,8 +551,12 @@ function formatLongDate(date: string | null | undefined) {
 }
 
 function formatHistoryDate(date: string) {
+  const parsedDate = new Date(`${date}T12:00:00`)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date
+  }
   return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-    .format(new Date(`${date}T12:00:00`))
+    .format(parsedDate)
     .replace('.', '')
 }
 
