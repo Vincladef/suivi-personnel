@@ -2770,6 +2770,7 @@ function App() {
                     <div className="tracker-category-list">
                       {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
+                        const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         return (
                           <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
@@ -2787,7 +2788,7 @@ function App() {
                                 aria-label={`Renseigner ${item.title}`}
                               >
                                 <div className="tracker-open-copy compact-tracker-open-copy">
-                                  <strong className={`tracker-title state-text-${(resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state} ${trackerToneClass(item, resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item))}`}>{item.title}</strong>
+                                  <strong className={`tracker-title state-text-${habitEntry.state} ${trackerToneClass(item, habitEntry)}`}>{item.title}</strong>
                                 </div>
                               </button>
                               <div className="tracker-card-actions">
