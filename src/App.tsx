@@ -2998,8 +2998,8 @@ function App() {
                           </button>
                         </div>
                         {weekGoals.length === 0 && (
-                          <div className="goal-empty-state subtle-empty-state">
-                            <span>Aucun objectif cette semaine</span>
+                          <div className="goal-empty-state ultra-subtle-empty-state" aria-hidden="true">
+                            <span>Aucun objectif</span>
                           </div>
                         )}
                         {weekGoals.length > 0 && (

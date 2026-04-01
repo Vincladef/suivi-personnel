@@ -2082,3 +2082,22 @@ small,
 .history-compact-item {
   transform-origin: center;
 }
+
+
+.ultra-subtle-empty-state {
+  min-height: 1.1rem;
+  padding: 0.05rem 0.1rem 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+}
+
+.ultra-subtle-empty-state span {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: rgba(63, 74, 90, 0.22);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
