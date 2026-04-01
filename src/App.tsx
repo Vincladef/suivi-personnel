@@ -595,28 +595,39 @@ function yearLabel(date: string) {
   return new Intl.DateTimeFormat('fr-FR', { year: 'numeric' }).format(new Date(`${date}T12:00:00`))
 }
 
-function shortDayMonth(date: string) {
-  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(`${date}T12:00:00`))
-}
-
 function listWeeksInMonth(date: string) {
   const monthStart = startOfMonth(date)
   const monthEnd = endOfMonth(date)
-  const weeks: { start: string; end: string; label: string }[] = []
+  const monthValue = new Date(`${date}T12:00:00`).getMonth()
+  const weeks: { start: string; end: string; label: string; index: number }[] = []
   let cursor = startOfWeek(monthStart)
+  let index = 1
 
   while (cursor <= monthEnd) {
     const weekStart = cursor
     const weekEnd = endOfWeek(weekStart)
-    weeks.push({
-      start: weekStart,
-      end: weekEnd,
-      label: `${shortDayMonth(weekStart)} → ${shortDayMonth(weekEnd)}`,
-    })
+    let daysInMonth = 0
+    for (let offset = 0; offset < 7; offset += 1) {
+      const day = new Date(`${shiftDate(weekStart, offset)}T12:00:00`)
+      if (day.getMonth() === monthValue) {
+        daysInMonth += 1
+      }
+    }
+
+    if (daysInMonth >= 4) {
+      weeks.push({
+        start: weekStart,
+        end: weekEnd,
+        label: `Semaine ${index}`,
+        index,
+      })
+      index += 1
+    }
+
     cursor = shiftDate(weekStart, 7)
   }
 
-  return weeks
+  return weeks.slice(0, 4)
 }
 
 function formatHistoryDate(date: string) {
@@ -849,15 +860,6 @@ function entryLabel(state: EntryState) {
     rest: 'Repos',
     inactive: 'Non concerne',
   }[state]
-}
-
-function periodLabel(goal: Goal) {
-  if (goal.horizon === 'life') return 'Long terme'
-  const date = new Date(`${goal.dueDate}T12:00:00`)
-  if (goal.horizon === 'week') return `Semaine du ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(date)}`
-  if (goal.horizon === 'month') return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date)
-  if (goal.horizon === 'quarter') return `T${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`
-  return String(date.getFullYear())
 }
 
 function sortGoals(goals: Goal[]) {
@@ -1629,7 +1631,7 @@ function App() {
     const baseDate = weekDate ?? goalPeriodDate
     setGoalDraft({
       ...defaultGoalDraft(),
-      horizon: weekDate ? 'week' : 'month',
+      horizon: weekDate ? 'week' : goalViewMode,
       dueDate: baseDate,
       weekDate: weekDate ?? startOfWeek(baseDate),
     })
@@ -2230,97 +2232,57 @@ function App() {
             </div>
 
             {goalViewMode === 'month' ? (
-              <div className="goal-month-layout">
-                <div className="goal-month-header-row">
-                  <strong>Objectifs du mois</strong>
-                  <button type="button" className="ghost-button" onClick={() => openGoalModal(null)}>+ Ajouter un objectif</button>
-                </div>
-                <div className="goal-list">
-                  {monthLevelGoals.length === 0 && (
-                    <article className="empty-panel compact-empty-panel">
-                      <h3>Aucun objectif pour ce mois</h3>
-                    </article>
-                  )}
-                  {monthLevelGoals.map((goal) => (
-                    <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
-                      <div className="goal-head">
-                        <div>
-                          <strong>{goal.title}</strong>
-                          <div className="tracker-meta">
-                            {entryLabelForInput(goal.resultKind, goalState(goal), goal.score) && (
-                              <span className={`pill ${stateClassName(goalState(goal))}`}>{entryLabelForInput(goal.resultKind, goalState(goal), goal.score)}</span>
-                            )}
-                            <span className="ghost-pill">Mois</span>
+              <div className="goal-month-layout minimal-goal-layout">
+                {monthLevelGoals.length > 0 && (
+                  <div className="goal-list">
+                    {monthLevelGoals.map((goal) => (
+                      <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
+                        <div className="goal-head">
+                          <div>
+                            <strong>{goal.title}</strong>
                           </div>
                         </div>
-                        <small>{formatLongDate(goal.dueDate)}</small>
-                      </div>
-                      {renderGoalInput(goal)}
-                    </article>
-                  ))}
-                </div>
+                        {renderGoalInput(goal)}
+                      </article>
+                    ))}
+                  </div>
+                )}
 
-                <div className="goal-week-sections">
+                <div className="goal-week-sections minimal-week-sections">
                   {monthWeeks.map((week) => {
                     const weekGoals = visibleGoals.filter((goal) => goal.weekDate === week.start)
                     return (
-                      <section key={week.start} className="goal-week-block">
-                        <div className="goal-week-head">
-                          <div>
-                            <strong>Semaine {week.label}</strong>
-                            <small>{formatLongDate(week.start)}</small>
-                          </div>
-                          <button type="button" className="ghost-button" onClick={() => openGoalModal(week.start)}>+ Ajouter</button>
+                      <section key={week.start} className="goal-week-block minimal-week-block" onClick={() => weekGoals.length === 0 ? openGoalModal(week.start) : undefined}>
+                        <div className="goal-week-head minimal-week-head">
+                          <strong>{week.label}</strong>
                         </div>
-                        <div className="goal-list">
-                          {weekGoals.length === 0 && (
-                            <article className="empty-panel compact-empty-panel">
-                              <p>Aucun objectif pour cette semaine.</p>
-                            </article>
-                          )}
-                          {weekGoals.map((goal) => (
-                            <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
-                              <div className="goal-head">
-                                <div>
-                                  <strong>{goal.title}</strong>
-                                  <div className="tracker-meta">
-                                    {entryLabelForInput(goal.resultKind, goalState(goal), goal.score) && (
-                                      <span className={`pill ${stateClassName(goalState(goal))}`}>{entryLabelForInput(goal.resultKind, goalState(goal), goal.score)}</span>
-                                    )}
-                                    <span className="ghost-pill">Semaine</span>
+                        {weekGoals.length > 0 && (
+                          <div className="goal-list compact-goal-list">
+                            {weekGoals.map((goal) => (
+                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card`}>
+                                <div className="goal-head compact-goal-head">
+                                  <div>
+                                    <strong>{goal.title}</strong>
                                   </div>
                                 </div>
-                                <small>{week.label}</small>
-                              </div>
-                              {renderGoalInput(goal)}
-                            </article>
-                          ))}
-                        </div>
+                                {renderGoalInput(goal)}
+                              </article>
+                            ))}
+                          </div>
+                        )}
                       </section>
                     )
                   })}
                 </div>
               </div>
             ) : (
-              <div className="goal-list">
-                {visibleGoals.length === 0 && (
-                  <article className="empty-panel">
-                    <h3>Aucun objectif pour cette annee</h3>
-                  </article>
-                )}
-                {visibleGoals.map((goal) => (
+              <div className="goal-year-layout minimal-goal-layout">
+                {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
                   <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
                     <div className="goal-head">
                       <div>
                         <strong>{goal.title}</strong>
-                        <div className="tracker-meta">
-                          {entryLabelForInput(goal.resultKind, goalState(goal), goal.score) && (
-                            <span className={`pill ${stateClassName(goalState(goal))}`}>{entryLabelForInput(goal.resultKind, goalState(goal), goal.score)}</span>
-                          )}
-                          <span className="ghost-pill">{goal.weekDate ? `Semaine ${shortDayMonth(goal.weekDate)}` : periodLabel(goal)}</span>
-                        </div>
                       </div>
-                      <small>{formatLongDate(goal.dueDate)}</small>
                     </div>
                     {renderGoalInput(goal)}
                   </article>
@@ -2396,8 +2358,9 @@ function App() {
                 <form className="form-grid compact-form" onSubmit={addGoal}>
                   <input required value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} placeholder="Titre" />
                   <select value={goalDraft.horizon} onChange={(event) => setGoalDraft({ ...goalDraft, horizon: event.target.value as GoalHorizon })}>
-                    <option value="month">Objectif du mois</option>
                     <option value="week">Objectif de semaine</option>
+                    <option value="month">Objectif du mois</option>
+                    <option value="year">Objectif de l annee</option>
                   </select>
                   {goalDraft.horizon === 'week' ? (
                     <input type="date" value={goalDraft.weekDate} onChange={(event) => setGoalDraft({ ...goalDraft, weekDate: event.target.value, dueDate: event.target.value })} />

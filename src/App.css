@@ -1229,13 +1229,36 @@ small,
   border-top: 1px solid rgba(116, 128, 146, 0.12);
 }
 
-.compact-empty-panel {
-  padding: 0.95rem 1rem;
+.minimal-goal-layout,
+.minimal-week-sections,
+.goal-year-layout,
+.compact-goal-list {
+  display: grid;
+  gap: 0.75rem;
 }
 
-.compact-empty-panel h3,
-.compact-empty-panel p {
-  margin: 0;
+.minimal-week-block {
+  padding: 0.25rem 0;
+  border-top: 1px solid rgba(116, 128, 146, 0.1);
+  cursor: pointer;
+}
+
+.minimal-week-head {
+  justify-content: flex-start;
+}
+
+.minimal-week-head strong {
+  font-size: 1rem;
+  color: #243041;
+}
+
+.compact-goal-card {
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+}
+
+.compact-goal-head {
+  margin-bottom: 0.2rem;
 }
 
 @media (max-width: 720px) {
