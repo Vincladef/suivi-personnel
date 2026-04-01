@@ -1191,6 +1191,53 @@ small,
   color: #566276;
 }
 
+.goal-surface-head {
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.goal-period-controls,
+.goal-view-toggle,
+.goal-month-layout,
+.goal-week-sections {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.goal-view-toggle {
+  grid-auto-flow: column;
+  justify-content: start;
+}
+
+.goal-view-toggle .ghost-button.active {
+  background: rgba(31, 42, 63, 0.12);
+  border-color: rgba(42, 55, 82, 0.14);
+}
+
+.goal-month-header-row,
+.goal-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.goal-week-block {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(116, 128, 146, 0.12);
+}
+
+.compact-empty-panel {
+  padding: 0.95rem 1rem;
+}
+
+.compact-empty-panel h3,
+.compact-empty-panel p {
+  margin: 0;
+}
+
 @media (max-width: 720px) {
   .date-nav-controls {
     width: 100%;
