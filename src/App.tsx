@@ -76,6 +76,7 @@ type TrackerItem = {
   frequency: { kind: FrequencyKind; days: number[] } | null
   restAfterSuccess: number
   subItems: TrackerSubItem[]
+  order?: number
 }
 
 type TrackerEntry = {
@@ -121,6 +122,7 @@ type Goal = {
   numericValue: number | null
   note: string
   subEntries: Record<string, GoalSubEntry>
+  order?: number
 }
 
 type AppState = {
@@ -944,6 +946,7 @@ function normalizeTrackerItem(raw: Partial<TrackerItem>): TrackerItem {
     frequency: raw.frequency ?? null,
     restAfterSuccess: raw.restAfterSuccess ?? 0,
     subItems: (raw.subItems ?? []).map((item) => normalizeSubItem(item)),
+    order: raw.order ?? 0,
   }
 }
 
@@ -986,6 +989,7 @@ function normalizeGoal(raw: Partial<Goal>): Goal {
     checklistTemplate: raw.checklistTemplate ?? [],
     target: raw.target ?? null,
     subItems: (raw.subItems ?? []).map((item) => normalizeSubItem(item)),
+    order: raw.order ?? 0,
     status: raw.status ?? 'unknown',
     score: raw.score ?? null,
     checklist: (raw.resultKind ?? 'tristate') === 'checklist' ? (raw.checklistTemplate ?? []).map((_, index) => normalizeChecklistState(raw.checklist?.[index])) : [],
@@ -1051,9 +1055,35 @@ function sortGoals(goals: Goal[]) {
   return [...goals].sort((left, right) => {
     const horizonDelta = horizonOrder.indexOf(left.horizon) - horizonOrder.indexOf(right.horizon)
     if (horizonDelta !== 0) return horizonDelta
+    if ((left.order ?? 0) !== (right.order ?? 0)) return (left.order ?? 0) - (right.order ?? 0)
     if (left.dueDate !== right.dueDate) return left.dueDate.localeCompare(right.dueDate)
     return priorityOrder.indexOf(left.priority) - priorityOrder.indexOf(right.priority)
   })
+}
+
+function sortTrackerItems(items: TrackerItem[]) {
+  return [...items].sort((left, right) => {
+    if ((left.order ?? 0) !== (right.order ?? 0)) return (left.order ?? 0) - (right.order ?? 0)
+    return left.title.localeCompare(right.title, 'fr', { sensitivity: 'base' })
+  })
+}
+
+function resequenceTrackerItems(items: TrackerItem[]) {
+  return items.map((item, index) => ({ ...item, order: index }))
+}
+
+function resequenceGoals(goals: Goal[]) {
+  return goals.map((goal, index) => ({ ...goal, order: index }))
+}
+
+function moveItem<T extends { id: string }>(items: T[], draggedId: string, targetId: string) {
+  const fromIndex = items.findIndex((item) => item.id === draggedId)
+  const toIndex = items.findIndex((item) => item.id === targetId)
+  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return items
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  return next
 }
 
 function buildHabitOccurrenceForDate(
@@ -1345,8 +1375,8 @@ function App() {
     return () => window.clearTimeout(timeout)
   }, [celebration])
 
-  const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
-  const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
+  const habitItems = sortTrackerItems(state.trackerItems.filter((item) => item.module === 'habits'))
+  const performanceItems = sortTrackerItems(state.trackerItems.filter((item) => item.module === 'performances'))
   const allCategories = Array.from(new Set(
     state.trackerItems
       .map((item) => (item.category || '').trim())
@@ -1390,6 +1420,23 @@ function App() {
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
   const sortedGoals = sortGoals(state.goals)
+  const [draggedTrackerId, setDraggedTrackerId] = useState<string | null>(null)
+  const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null)
+
+  function reorderTrackersWithinCategory(module: ModuleKey, category: string, draggedId: string, targetId: string) {
+    const categoryKey = category.trim() || 'Autres'
+    const sameBucket = sortTrackerItems(state.trackerItems.filter((item) => item.module === module && (((item.category || '').trim() || 'Autres') === categoryKey)))
+    const reorderedBucket = resequenceTrackerItems(moveItem(sameBucket, draggedId, targetId))
+    const reorderedById = Object.fromEntries(reorderedBucket.map((item) => [item.id, item.order ?? 0]))
+    patchState({ trackerItems: state.trackerItems.map((item) => item.module === module && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
+  }
+
+  function reorderGoalsWithinList(goalIds: string[], draggedId: string, targetId: string) {
+    const bucket = goalIds.map((goalId) => state.goals.find((goal) => goal.id === goalId)).filter(Boolean)
+    const reorderedBucket = resequenceGoals(moveItem(bucket as Goal[], draggedId, targetId))
+    const reorderedById = Object.fromEntries(reorderedBucket.map((goal) => [goal.id, goal.order ?? 0]))
+    patchState({ goals: state.goals.map((goal) => reorderedById[goal.id] != null ? { ...goal, order: reorderedById[goal.id] } : goal) })
+  }
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
   const yearFinalDueDate = goalDueDateForHorizon('year', goalPeriodDate, monthWeeks)
@@ -2908,7 +2955,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
                         return (
-                          <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                          <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedTrackerId) reorderTrackersWithinCategory('habits', category, draggedTrackerId, item.id); setDraggedTrackerId(null) }} className={`tracker-card is-draggable ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
                               <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                                 {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -3010,7 +3057,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 const performanceToneState = displayToneState(item.inputKind, performanceEntry, item.target)
                 return (
-                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedTrackerId) reorderTrackersWithinCategory('performances', item.category || '', draggedTrackerId, item.id); setDraggedTrackerId(null) }} className={`tracker-card is-draggable ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
                     <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                       {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -3116,7 +3163,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 {monthLevelGoals.length > 0 && (
                   <div className="goal-list">
                     {monthLevelGoals.map((goal) => (
-                      <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                      <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                         <div className="goal-head">
                           <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                             <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3164,7 +3211,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         {weekGoals.length > 0 && (
                           <div className="goal-list compact-goal-list">
                             {weekGoals.map((goal) => (
-                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                              <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(weekGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                                 <div className="goal-head compact-goal-head">
                                   <button type="button" className="tracker-open goal-open" onClick={(event) => { event.stopPropagation(); openGoalEditor(goal.id) }} aria-label={`Renseigner ${goal.title}`}>
                                     <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3195,7 +3242,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
             ) : (
               <div className="goal-year-layout minimal-goal-layout">
                 {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
-                  <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                  <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                     <div className="goal-head">
                       <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                         <div className="tracker-open-copy compact-tracker-open-copy">

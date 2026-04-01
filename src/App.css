@@ -2271,3 +2271,12 @@ small,
 .subitem-group-head .subgoal-add-button {
   flex: 0 0 auto;
 }
+
+
+.is-draggable {
+  cursor: grab;
+}
+
+.is-draggable:active {
+  cursor: grabbing;
+}
