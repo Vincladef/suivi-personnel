@@ -10,6 +10,7 @@ const DRIVE_BASE = 'https://www.googleapis.com/drive/v3/files'
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
 const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+const GOOGLE_USER_EMAIL = 'vincent.denizbraah@gmail.com'
 
 function toBase64Url(input) {
   return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
@@ -175,6 +176,25 @@ async function firestorePatchDocument(projectId, path, payload, accessToken) {
 
   if (!response.ok) {
     throw new Error(`Firestore patch failed for ${path} (${response.status}): ${await response.text()}`)
+  }
+
+  return response.json()
+}
+
+async function exchangeRefreshToken({ clientId, clientSecret, refreshToken }) {
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OAuth token refresh failed (${response.status}): ${await response.text()}`)
   }
 
   return response.json()
@@ -435,13 +455,20 @@ export default async function handler(request) {
     const apiKey = 'AIzaSyD2qFbsiTYj4kEY3TZ2wjEFgSTe_yngasw'
     const serviceAccount = secrets.integrations?.firebase?.serviceAccount
     const projectId = serviceAccount?.project_id || secrets.integrations?.google?.oauth?.projectId
+    const googleOauth = secrets.integrations?.google?.oauth
+    const googleAccount = secrets.integrations?.google?.accounts?.[GOOGLE_USER_EMAIL]
 
-    if (!apiKey || !serviceAccount || !projectId) {
+    if (!apiKey || !serviceAccount || !projectId || !googleOauth?.clientId || !googleOauth?.clientSecret || !googleAccount?.refreshToken) {
       throw new Error('Missing Google or Firebase configuration.')
     }
 
     const authUser = await verifyFirebaseUser(idToken, apiKey)
-    const serviceToken = await createServiceAccountAccessToken(serviceAccount, [FIRESTORE_SCOPE, SHEETS_SCOPE, DRIVE_SCOPE])
+    const serviceToken = await createServiceAccountAccessToken(serviceAccount, [FIRESTORE_SCOPE])
+    const googleToken = await exchangeRefreshToken({
+      clientId: googleOauth.clientId,
+      clientSecret: googleOauth.clientSecret,
+      refreshToken: googleAccount.refreshToken,
+    })
 
     const appStateDocument = await firestoreGetDocument(projectId, `appStates/${authUser.uid}`, serviceToken.access_token)
     const appStateData = appStateDocument ? firestoreDocumentToObject(appStateDocument) : {}
@@ -451,8 +478,8 @@ export default async function handler(request) {
     const existingSheet = profile.googleSheet
 
     if (existingSheet?.spreadsheetId && existingSheet?.url) {
-      await batchUpdateSpreadsheetValues(existingSheet.spreadsheetId, buildSpreadsheetPayload(state), serviceToken.access_token)
-      await shareSpreadsheet(existingSheet.spreadsheetId, authUser.email, serviceToken.access_token)
+      await batchUpdateSpreadsheetValues(existingSheet.spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
+      await shareSpreadsheet(existingSheet.spreadsheetId, authUser.email, googleToken.access_token)
 
       await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
         email: authUser.email,
@@ -474,12 +501,12 @@ export default async function handler(request) {
     }
 
     const createdAt = new Date().toISOString()
-    const spreadsheet = await createSpreadsheet(`Suivi Personnel - ${authUser.email || authUser.uid}`, serviceToken.access_token)
+    const spreadsheet = await createSpreadsheet(`Suivi Personnel - ${authUser.email || authUser.uid}`, googleToken.access_token)
     const spreadsheetId = spreadsheet.spreadsheetId
     const url = sheetUrlFromId(spreadsheetId)
 
-    await batchUpdateSpreadsheetValues(spreadsheetId, buildSpreadsheetPayload(state), serviceToken.access_token)
-    await shareSpreadsheet(spreadsheetId, authUser.email, serviceToken.access_token)
+    await batchUpdateSpreadsheetValues(spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
+    await shareSpreadsheet(spreadsheetId, authUser.email, googleToken.access_token)
 
     await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
       email: authUser.email,
