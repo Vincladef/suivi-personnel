@@ -905,6 +905,33 @@ small,
   gap: 0.45rem;
 }
 
+.compact-tracker-open-copy {
+  gap: 0.08rem;
+}
+
+.tracker-title {
+  display: block;
+  line-height: 1.2;
+}
+
+.tracker-title.state-text-success {
+  color: #216949;
+}
+
+.tracker-title.state-text-excused,
+.tracker-title.state-text-rest {
+  color: #9a6a12;
+}
+
+.tracker-title.state-text-failed {
+  color: #a1382d;
+}
+
+.tracker-title.state-text-unknown,
+.tracker-title.state-text-inactive {
+  color: #243041;
+}
+
 .tracker-open-hint {
   flex-shrink: 0;
   color: #526177;
@@ -1123,8 +1150,9 @@ small,
   position: sticky;
   bottom: 0;
   display: grid;
-  gap: 0.32rem;
-  padding-top: 0.4rem;
+  gap: 0.7rem;
+  padding-top: 0.7rem;
+  margin-top: 0.45rem;
   background: linear-gradient(180deg, rgba(238, 242, 246, 0), rgba(238, 242, 246, 0.94) 42%, rgba(238, 242, 246, 0.98));
 }
 
@@ -1144,6 +1172,12 @@ small,
   color: #6a7485;
   font-size: 0.76rem;
   line-height: 1.35;
+}
+
+.rest-note-trailing {
+  margin-top: 0.8rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(116, 128, 146, 0.12);
 }
 
 .global-rest-note.align-center {

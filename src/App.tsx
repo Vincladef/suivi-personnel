@@ -1957,13 +1957,6 @@ function App() {
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>
             </div>
-            {habitRestItems.length > 0 && (
-              <div className="global-rest-note">
-                <span className="global-rest-note-label">Repos auto :</span>
-                <span>{habitRestItems.map((item) => item.title).join(' · ')}</span>
-              </div>
-            )}
-
             <div className="tracker-list">
               {visibleHabitItems.length === 0 && (
                 <article className="empty-panel">
@@ -1989,13 +1982,8 @@ function App() {
                       onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}
                       aria-label={`Renseigner ${item.title}`}
                     >
-                      <div className="tracker-open-copy">
-                        <strong>{item.title}</strong>
-                        {entryLabelForInput(item.inputKind, resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown', resolvedHabitOccurrence.entries[item.id]?.score) && (
-                          <div className="tracker-meta">
-                            <span className={`pill ${stateClassName(resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown')}`}>{entryLabelForInput(item.inputKind, resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown', resolvedHabitOccurrence.entries[item.id]?.score)}</span>
-                          </div>
-                        )}
+                      <div className="tracker-open-copy compact-tracker-open-copy">
+                        <strong className={`tracker-title state-text-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{item.title}</strong>
                       </div>
                     </button>
                     <div className="tracker-card-actions">
@@ -2036,6 +2024,12 @@ function App() {
                 </article>
               )})}
             </div>
+            {habitRestItems.length > 0 && (
+              <div className="global-rest-note rest-note-trailing">
+                <span className="global-rest-note-label">Repos auto :</span>
+                <span>{habitRestItems.map((item) => item.title).join(' · ')}</span>
+              </div>
+            )}
           </section>
         )}
 
