@@ -224,7 +224,7 @@ export default async function handler() {
       if (withinWindow && !recentlyTracked && (habitCount > 0 || goalCount > 0)) {
         mode = 'daily'
       }
-      if (!mode && settings.inactiveReminderEnabled && inactiveDays >= Number(settings.inactiveDaysThreshold || 3) && meta.lastInactiveReminderDate !== localDate) {
+      if (!mode && quietDays > 0 && inactiveDays >= quietDays && meta.lastInactiveReminderDate !== localDate) {
         mode = 'inactive'
       }
       if (!mode) continue

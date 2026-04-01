@@ -186,8 +186,6 @@ function currentNotificationSettingsFallback(): NotificationSettings {
     dailyReminderTime: '07:00',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     quietDaysAfterTracking: 1,
-    inactiveReminderEnabled: true,
-    inactiveDaysThreshold: 3,
   }
 }
 
@@ -197,8 +195,6 @@ type NotificationSettings = {
   dailyReminderTime: string
   timezone: string
   quietDaysAfterTracking: number
-  inactiveReminderEnabled: boolean
-  inactiveDaysThreshold: number
 }
 
 type HistoryItem = {
@@ -2525,26 +2521,6 @@ function App() {
                     <option value="5">5 jours</option>
                     <option value="7">7 jours</option>
                   </select>
-                </label>
-                <label className="settings-toggle">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.inactiveReminderEnabled}
-                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, inactiveReminderEnabled: event.target.checked })}
-                    disabled={!notificationSettings.enabled || notificationSaving}
-                  />
-                  <span>Rappel apres plusieurs jours sans suivi</span>
-                </label>
-                <label className="settings-field">
-                  <span>Nombre de jours sans suivi</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={notificationSettings.inactiveDaysThreshold}
-                    onChange={(event) => setNotificationSettings({ ...notificationSettings, inactiveDaysThreshold: Math.max(1, Number(event.target.value || 1)) })}
-                    onBlur={() => void saveNotificationSettings(notificationSettings)}
-                    disabled={!notificationSettings.enabled || !notificationSettings.inactiveReminderEnabled || notificationSaving}
-                  />
                 </label>
                 <div className="notification-actions">
                   <button
