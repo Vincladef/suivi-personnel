@@ -2772,7 +2772,7 @@ function App() {
                       {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         return (
-                          <article key={item.id} className={`tracker-card ${trackerToneClass(item, resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item))} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                          <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
                               <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                                 {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -2873,7 +2873,7 @@ function App() {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 return (
-                <article key={item.id} className={`tracker-card ${trackerToneClass(item, performanceEntry)} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
                     <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                       {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
