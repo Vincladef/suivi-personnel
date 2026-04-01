@@ -995,7 +995,6 @@ function App() {
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
-  const [trackerActionMenuId, setTrackerActionMenuId] = useState<string | null>(null)
   const [celebration, setCelebration] = useState<CelebrationState | null>(null)
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const checklistDragRef = useRef<{ scope: string; index: number } | null>(null)
@@ -1098,20 +1097,6 @@ function App() {
     const timeout = window.setTimeout(() => setCelebration(null), 2200)
     return () => window.clearTimeout(timeout)
   }, [celebration])
-
-  useEffect(() => {
-    if (!trackerActionMenuId) return
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setTrackerActionMenuId(null)
-    }
-
-    document.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [trackerActionMenuId])
 
   const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
   const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
@@ -2121,17 +2106,11 @@ function App() {
                         <button
                           type="button"
                           className="ghost-icon tracker-menu-button"
-                          aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          aria-label={`Modifier ${item.title}`}
+                          onClick={() => openTrackerModal('habits', item)}
                         >
                           ⋮
                         </button>
-                        {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
-                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
-                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2210,17 +2189,11 @@ function App() {
                         <button
                           type="button"
                           className="ghost-icon tracker-menu-button"
-                          aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          aria-label={`Modifier ${item.title}`}
+                          onClick={() => openTrackerModal('performances', item)}
                         >
                           ⋮
                         </button>
-                        {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
-                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
-                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2540,7 +2513,12 @@ function App() {
                     </div>
                     <button type="button" className="ghost-button" onClick={addSubItemDraft}>Ajouter une sous-consigne</button>
                   </div>
-                  <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
+                  <div className="editor-actions-row">
+                    {editingTrackerId ? (
+                      <button type="button" className="ghost-button danger" onClick={() => deleteTrackerItem(editingTrackerId)}>Supprimer la consigne</button>
+                    ) : <span />}
+                    <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
+                  </div>
                 </form>
               )}
             </div>

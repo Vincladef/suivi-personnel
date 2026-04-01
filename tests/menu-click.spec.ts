@@ -8,7 +8,7 @@ test('mobile action menu opens on tap', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Minimum 6 caracteres' }).fill('motdepasseopenclaw')
   await page.getByRole('button', { name: 'Se connecter' }).click()
 
-  const actionButton = page.getByRole('button', { name: 'Actions pour Faire du sport' }).first()
+  const actionButton = page.getByRole('button', { name: 'Modifier  Faire du sport' }).first()
   await expect(actionButton).toBeVisible({ timeout: 60000 })
   await actionButton.click()
 
