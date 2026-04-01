@@ -1,7 +1,7 @@
 import webpush from 'web-push'
 
 const VAPID_PUBLIC_KEY = '<VAPID_PUBLIC_KEY>'
-const VAPID_PRIVATE_KEY = '<VAPID_PRIVATE_KEY>'
+const VAPID_PRIVATE_KEY = 'ZWwOV2zBa4JnjWfO5zC2VVt797a_8gL7_h7FI8z3xxM'
 
 webpush.setVapidDetails('mailto:vincent.denizbraah@gmail.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 

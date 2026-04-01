@@ -6,8 +6,8 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1'
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
 const APP_URL = 'https://suivi-personnel-app.netlify.app'
-const VAPID_PUBLIC_KEY = 'BC6y1nT7x6wJQX8wY3AmvU5M8k4X2rE0xQmY8QvJfB9XnS4xY_2F5D4X8nA7cP8m6eJmY0m2Q4c5mA8d2hR7f0'
-const VAPID_PRIVATE_KEY = '<VAPID_PRIVATE_KEY>'
+const VAPID_PUBLIC_KEY = 'BNIkJ33gbrd07BT_f_MBE6QAaXkvc2HKi5oZ8MxfkUSzfOuZ8AfTj0YA_kJI8WEtVuEFAeRJGtNAyaQHtbfRAus'
+const VAPID_PRIVATE_KEY = 'ZWwOV2zBa4JnjWfO5zC2VVt797a_8gL7_h7FI8z3xxM'
 
 webpush.setVapidDetails('mailto:vincent.denizbraah@gmail.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 

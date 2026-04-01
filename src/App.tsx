@@ -239,7 +239,7 @@ type GoalDraft = {
 }
 
 const storageKey = 'application-de-suivi-v2'
-const vapidPublicKey = 'BC6y1nT7x6wJQX8wY3AmvU5M8k4X2rE0xQmY8QvJfB9XnS4xY_2F5D4X8nA7cP8m6eJmY0m2Q4c5mA8d2hR7f0'
+const vapidPublicKey = 'BNIkJ33gbrd07BT_f_MBE6QAaXkvc2HKi5oZ8MxfkUSzfOuZ8AfTj0YA_kJI8WEtVuEFAeRJGtNAyaQHtbfRAus'
 const debugStorageKey = 'application-de-suivi-debug-v1'
 const todayDate = new Date()
 todayDate.setHours(12, 0, 0, 0)
