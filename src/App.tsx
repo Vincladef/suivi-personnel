@@ -129,7 +129,7 @@ type TrackerSubDraft = {
   checklistItems: string[]
   newChecklistItem: string
   targetMode: TargetMode
-  targetValue: number
+  targetValue: string
   targetUnit: string
 }
 
@@ -141,11 +141,11 @@ type TrackerDraft = {
   priority: Priority
   frequencyKind: FrequencyKind
   frequencyDays: number[]
-  restAfterSuccess: number
+  restAfterSuccess: string
   checklistItems: string[]
   newChecklistItem: string
   targetMode: TargetMode
-  targetValue: number
+  targetValue: string
   targetUnit: string
   subItems: TrackerSubDraft[]
 }
@@ -191,7 +191,7 @@ type GoalDraft = {
   checklistItems: string[]
   newChecklistItem: string
   targetMode: TargetMode
-  targetValue: number
+  targetValue: string
   targetUnit: string
 }
 
@@ -226,7 +226,7 @@ const defaultSubDraft = (): TrackerSubDraft => ({
   checklistItems: [],
   newChecklistItem: '',
   targetMode: 'atLeast',
-  targetValue: 1,
+  targetValue: '',
   targetUnit: '',
 })
 
@@ -238,11 +238,11 @@ const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   priority: 'medium',
   frequencyKind: 'daily',
   frequencyDays: [1, 2, 3, 4, 5],
-  restAfterSuccess: 0,
+  restAfterSuccess: '',
   checklistItems: [],
   newChecklistItem: '',
   targetMode: 'atLeast',
-  targetValue: 1,
+  targetValue: '',
   targetUnit: '',
   subItems: [],
 })
@@ -258,7 +258,7 @@ const defaultGoalDraft = (): GoalDraft => ({
   checklistItems: [],
   newChecklistItem: '',
   targetMode: 'atLeast',
-  targetValue: 1,
+  targetValue: '',
   targetUnit: '',
 })
 
@@ -271,11 +271,11 @@ function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
     priority: item.priority,
     frequencyKind: item.frequency?.kind ?? 'daily',
     frequencyDays: item.frequency?.days ?? [1, 2, 3, 4, 5],
-    restAfterSuccess: item.restAfterSuccess,
+    restAfterSuccess: item.restAfterSuccess === 0 ? '' : String(item.restAfterSuccess),
     checklistItems: [...item.checklistTemplate],
     newChecklistItem: '',
     targetMode: item.target?.mode ?? 'atLeast',
-    targetValue: item.target?.value ?? 1,
+    targetValue: item.target ? String(item.target.value) : '',
     targetUnit: item.target?.unit ?? '',
     subItems: item.subItems.map((subItem) => ({
       id: subItem.id,
@@ -284,7 +284,7 @@ function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
       checklistItems: [...subItem.checklistTemplate],
       newChecklistItem: '',
       targetMode: subItem.target?.mode ?? 'atLeast',
-      targetValue: subItem.target?.value ?? 1,
+      targetValue: subItem.target ? String(subItem.target.value) : '',
       targetUnit: subItem.target?.unit ?? '',
     })),
   }
@@ -1228,19 +1228,19 @@ function App() {
       inputKind: trackerDraft.inputKind,
       priority: trackerDraft.priority,
       checklistTemplate,
-      target: trackerDraft.inputKind === 'numeric'
+      target: trackerDraft.inputKind === 'numeric' && trackerDraft.targetValue !== ''
         ? { mode: trackerDraft.targetMode, value: Number(trackerDraft.targetValue), unit: trackerDraft.targetUnit }
         : null,
       frequency: trackerDraft.module === 'habits'
         ? { kind: trackerDraft.frequencyKind, days: trackerDraft.frequencyDays }
         : null,
-      restAfterSuccess: Number(trackerDraft.restAfterSuccess),
+      restAfterSuccess: trackerDraft.restAfterSuccess === '' ? 0 : Number(trackerDraft.restAfterSuccess),
       subItems: trackerDraft.subItems.map((subItem) => ({
         id: subItem.id,
         title: subItem.title,
         inputKind: subItem.inputKind,
         checklistTemplate: subItem.inputKind === 'checklist' ? subItem.checklistItems : [],
-        target: subItem.inputKind === 'numeric'
+        target: subItem.inputKind === 'numeric' && subItem.targetValue !== ''
           ? { mode: subItem.targetMode, value: Number(subItem.targetValue), unit: subItem.targetUnit }
           : null,
       })),
@@ -1321,7 +1321,7 @@ function App() {
       priority: goalDraft.priority,
       reminder: goalDraft.reminder,
       checklistTemplate: goalDraft.resultKind === 'checklist' ? goalDraft.checklistItems : [],
-      target: goalDraft.resultKind === 'numeric'
+      target: goalDraft.resultKind === 'numeric' && goalDraft.targetValue !== ''
         ? { mode: goalDraft.targetMode, value: Number(goalDraft.targetValue), unit: goalDraft.targetUnit }
         : null,
       status: 'unknown',
@@ -1869,7 +1869,7 @@ function App() {
               <option value="atMost">Ne pas depasser</option>
               <option value="exactly">Atteindre exactement</option>
             </select>
-            <input type="number" value={subItem.targetValue} onChange={(event) => patchSubItemDraft(subItem.id, { targetValue: Number(event.target.value) })} placeholder="Objectif cible" />
+            <input type="number" value={subItem.targetValue} onChange={(event) => patchSubItemDraft(subItem.id, { targetValue: event.target.value })} placeholder="0" />
             <input value={subItem.targetUnit} onChange={(event) => patchSubItemDraft(subItem.id, { targetUnit: event.target.value })} placeholder="Unite" />
           </>
         )}
@@ -2129,13 +2129,14 @@ function App() {
                       <input
                         type="number"
                         min="0"
-                        value={trackerEditorItem.restAfterSuccess}
+                        value={trackerEditorItem.restAfterSuccess === 0 ? '' : String(trackerEditorItem.restAfterSuccess)}
+                        placeholder="0"
                         onChange={(event) => {
-                          const nextValue = Number(event.target.value)
+                          const rawValue = event.target.value
                           patchState({
                             trackerItems: state.trackerItems.map((candidate) => (
                               candidate.id === trackerEditorItem.id
-                                ? { ...candidate, restAfterSuccess: Number.isNaN(nextValue) ? 0 : nextValue }
+                                ? { ...candidate, restAfterSuccess: rawValue === '' ? 0 : Number(rawValue) }
                                 : candidate
                             )),
                           })
@@ -2210,7 +2211,7 @@ function App() {
                         <option value="atMost">Ne pas depasser</option>
                         <option value="exactly">Atteindre exactement</option>
                       </select>
-                      <input type="number" value={goalDraft.targetValue} onChange={(event) => setGoalDraft({ ...goalDraft, targetValue: Number(event.target.value) })} placeholder="Objectif cible" />
+                      <input type="number" value={goalDraft.targetValue} onChange={(event) => setGoalDraft({ ...goalDraft, targetValue: event.target.value })} placeholder="0" />
                       <input value={goalDraft.targetUnit} onChange={(event) => setGoalDraft({ ...goalDraft, targetUnit: event.target.value })} placeholder="Unite" />
                     </>
                   )}
@@ -2262,8 +2263,8 @@ function App() {
                         type="number"
                         min="0"
                         value={trackerDraft.restAfterSuccess}
-                        onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: Number(event.target.value), module: modalView })}
-                        placeholder="Nombre de jours"
+                        onChange={(event) => setTrackerDraft({ ...trackerDraft, restAfterSuccess: event.target.value, module: modalView })}
+                        placeholder="0"
                       />
                       <small className="muted-inline">
                         Si la consigne est reussie, elle pourra etre mise en pause automatiquement pendant ce nombre de jours.
@@ -2286,7 +2287,7 @@ function App() {
                         <option value="atMost">Ne pas depasser</option>
                         <option value="exactly">Atteindre exactement</option>
                       </select>
-                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: Number(event.target.value), module: modalView })} placeholder="Objectif cible" />
+                      <input type="number" value={trackerDraft.targetValue} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetValue: event.target.value, module: modalView })} placeholder="0" />
                       <input value={trackerDraft.targetUnit} onChange={(event) => setTrackerDraft({ ...trackerDraft, targetUnit: event.target.value, module: modalView })} placeholder="Unite" />
                     </>
                   )}
