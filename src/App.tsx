@@ -2787,7 +2787,7 @@ function App() {
                                 aria-label={`Renseigner ${item.title}`}
                               >
                                 <div className="tracker-open-copy compact-tracker-open-copy">
-                                  <strong className={`tracker-title state-text-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{item.title}</strong>
+                                  <strong className={`tracker-title state-text-${(resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state} ${trackerToneClass(item, resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item))}`}>{item.title}</strong>
                                 </div>
                               </button>
                               <div className="tracker-card-actions">
