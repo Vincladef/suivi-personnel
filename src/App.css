@@ -259,13 +259,19 @@ textarea {
 }
 
 .surface-panel,
-.tracker-card,
 .goal-card,
 .empty-panel {
   display: grid;
   gap: 0.9rem;
   position: relative;
   overflow: hidden;
+}
+
+.tracker-card {
+  display: grid;
+  gap: 0.9rem;
+  position: relative;
+  overflow: visible;
 }
 
 .surface-panel {
