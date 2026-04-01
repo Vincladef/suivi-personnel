@@ -1966,9 +1966,7 @@ function App() {
 
     const isAndroid = /android/i.test(window.navigator.userAgent)
     const isiPhone = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
-    if (isAndroid) {
-      setInstallState('available')
-    } else if (isiPhone) {
+    if (isAndroid || isiPhone) {
       setInstallState('manual')
     }
 
@@ -2094,6 +2092,9 @@ function App() {
       const choice = await installPromptRef.current.userChoice
       if (choice.outcome === 'accepted') {
         setInstallState('installed')
+        setInstallHintOpen(false)
+      } else {
+        setInstallHintOpen(true)
       }
       installPromptRef.current = null
       return
@@ -2330,7 +2331,7 @@ function App() {
                 {installState === 'installed' ? 'App installee' : 'Ajouter a l ecran d accueil'}
               </button>
               {installHintOpen && installState === 'manual' && (
-                <p className="muted-inline install-app-hint">Android : menu du navigateur puis Installer l application ou Ajouter a l ecran d accueil. iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
+                <p className="muted-inline install-app-hint">Android : ouvre le menu Chrome puis Installer l application ou Ajouter a l ecran d accueil. Si rien n apparait, recharge une fois la page. iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
               )}
             </div>
           )}
