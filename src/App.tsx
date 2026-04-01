@@ -1339,8 +1339,9 @@ function App() {
     setSelectedHabitDate(nextDate)
   }
 
-  function habitHistory(itemId: string) {
-    return habitOccurrences
+  function trackerHistory(itemId: string, module: ModuleKey) {
+    const occurrences = module === 'habits' ? habitOccurrences : performanceOccurrences
+    return occurrences
       .filter((occurrence) => {
         const entry = occurrence.entries[itemId]
         if (!entry) return false
@@ -1354,7 +1355,7 @@ function App() {
       .slice(0, 7)
       .map((occurrence) => ({
         occurrenceId: occurrence.id,
-        date: occurrence.date ?? '',
+        date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
         state: occurrence.entries[itemId]?.state ?? 'unknown',
       }))
   }
@@ -2018,7 +2019,7 @@ function App() {
                   <div className="history-row">
                     <span className="history-label">Historique</span>
                     <HistoryCarousel
-                      items={habitHistory(item.id)}
+                      items={trackerHistory(item.id, 'habits')}
                       selectedDate={selectedHabitDate}
                       onSelect={(date) => {
                         const occurrence = habitOccurrences.find((candidate) => candidate.date === date)
@@ -2090,6 +2091,22 @@ function App() {
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
+
+                  <div className="history-row">
+                    <span className="history-label">Historique</span>
+                    <HistoryCarousel
+                      items={trackerHistory(item.id, 'performances')}
+                      selectedDate={resolvedPerformanceOccurrence.id}
+                      onSelect={(occurrenceId) => {
+                        const occurrence = performanceOccurrences.find((candidate) => candidate.id === occurrenceId)
+                        writeDebugLog('performance-history-select', { from: resolvedPerformanceOccurrence.id, to: occurrenceId, occurrenceId: occurrence?.id })
+                        if (occurrence) {
+                          setPerformanceOccurrenceId(occurrence.id)
+                          openTrackerEditor('performances', item.id, occurrence.id)
+                        }
+                      }}
+                    />
+                  </div>
                 </article>
               )})}
             </div>
@@ -2153,37 +2170,30 @@ function App() {
               </div>
               <div className="tracker-editor-body">
                 {renderTrackerEditorInput(trackerEditorItem)}
-                {trackerEditor.module === 'habits' && (
-                  <div className="editor-actions-row">
-                    <div className="rest-quick-control">
-                      <span className="editor-hint">Repos auto</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={trackerEditorItem.restAfterSuccess === 0 ? '' : String(trackerEditorItem.restAfterSuccess)}
-                        placeholder="0"
-                        onChange={(event) => {
-                          const rawValue = event.target.value
-                          patchState({
-                            trackerItems: state.trackerItems.map((candidate) => (
-                              candidate.id === trackerEditorItem.id
-                                ? { ...candidate, restAfterSuccess: rawValue === '' ? 0 : Number(rawValue) }
-                                : candidate
-                            )),
-                          })
-                        }}
-                      />
-                    </div>
-                    <div className="editor-actions">
-                      <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
-                    </div>
+                <div className="editor-actions-row">
+                  <div className="rest-quick-control">
+                    <span className="editor-hint">Repos auto</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={trackerEditorItem.restAfterSuccess === 0 ? '' : String(trackerEditorItem.restAfterSuccess)}
+                      placeholder="0"
+                      onChange={(event) => {
+                        const rawValue = event.target.value
+                        patchState({
+                          trackerItems: state.trackerItems.map((candidate) => (
+                            candidate.id === trackerEditorItem.id
+                              ? { ...candidate, restAfterSuccess: rawValue === '' ? 0 : Number(rawValue) }
+                              : candidate
+                          )),
+                        })
+                      }}
+                    />
                   </div>
-                )}
-                {trackerEditor.module !== 'habits' && (
                   <div className="editor-actions">
                     <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
