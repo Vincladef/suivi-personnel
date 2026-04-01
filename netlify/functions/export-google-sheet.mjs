@@ -365,6 +365,7 @@ function normalizeAppState(state) {
     trackerItems: Array.isArray(state?.trackerItems) ? state.trackerItems : [],
     occurrences: Array.isArray(state?.occurrences) ? state.occurrences : [],
     goals: Array.isArray(state?.goals) ? state.goals : [],
+    goalPeriodNotes: state?.goalPeriodNotes && typeof state.goalPeriodNotes === 'object' ? state.goalPeriodNotes : {},
   }
 }
 
@@ -483,15 +484,70 @@ function goalHorizonLabel(horizon) {
   }[horizon] ?? horizon ?? ''
 }
 
+
+function goalCategoryName(goal) {
+  return goal.horizon === 'week'
+    ? `Semaines · ${goal.weekDate ?? goal.dueDate ?? ''}`
+    : goal.horizon === 'month'
+      ? 'Mois'
+      : goal.horizon === 'year'
+        ? 'Annees'
+        : 'Autres'
+}
+
+function formatGoalSubObjectives(goal) {
+  if (!Array.isArray(goal?.subItems) || goal.subItems.length === 0) return ''
+  return goal.subItems.map((subItem) => {
+    const entry = goal.subEntries?.[subItem.id]
+    const label = responseLabel(
+      subItem.inputKind,
+      subItem.inputKind === 'checklist' ? subItem.checklistTemplate : subItem.target,
+      entry,
+    )
+    return `${subItem.title}: ${label || 'vide'}`
+  }).join(' || ')
+}
+
+function buildGoalPeriodNoteRows(state) {
+  const entries = Object.entries(state.goalPeriodNotes ?? {})
+    .filter(([, value]) => typeof value === 'string' && value.trim())
+    .sort(([left], [right]) => left.localeCompare(right, 'fr', { sensitivity: 'base' }))
+
+  return entries.map(([key, value]) => {
+    const [scope, rawDate] = key.split(':')
+    const label = scope === 'week'
+      ? 'Note de semaine'
+      : scope === 'month'
+        ? 'Note de mois'
+        : scope === 'year'
+          ? 'Note d annee'
+          : 'Note'
+
+    return [
+      label,
+      rawDate ?? '',
+      '',
+      '',
+      '',
+      '',
+      value.trim(),
+      '',
+    ]
+  })
+}
+
 function buildGoalRows(state) {
-  const headers = ['Titre', 'Horizon', 'Echeance', 'Priorite', 'Statut', 'Valeur', 'Description']
-  const rows = [...state.goals]
+  const headers = ['Categorie', 'Titre', 'Horizon', 'Echeance', 'Priorite', 'Statut', 'Valeur', 'Description', 'Sous-objectifs']
+  const goalRows = [...state.goals]
     .sort((left, right) => {
+      const categoryCompare = goalCategoryName(left).localeCompare(goalCategoryName(right), 'fr', { sensitivity: 'base' })
+      if (categoryCompare !== 0) return categoryCompare
       const dueCompare = (left.dueDate ?? '').localeCompare(right.dueDate ?? '')
       if (dueCompare !== 0) return dueCompare
       return (left.title ?? '').localeCompare(right.title ?? '', 'fr', { sensitivity: 'base' })
     })
     .map((goal) => [
+      goalCategoryName(goal),
       goal.title ?? '',
       goalHorizonLabel(goal.horizon),
       goal.dueDate ?? '',
@@ -505,9 +561,11 @@ function buildGoalRows(state) {
         note: goal.note,
       }),
       goal.description ?? '',
+      formatGoalSubObjectives(goal),
     ])
 
-  return [headers, ...rows]
+  const noteRows = buildGoalPeriodNoteRows(state)
+  return [headers, ...goalRows, ...(noteRows.length > 0 ? [['', '', '', '', '', '', '', '', ''], ...noteRows.map((row) => [...row, ''])] : [])]
 }
 
 function buildSpreadsheetPayload(state) {
