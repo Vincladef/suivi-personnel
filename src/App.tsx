@@ -93,6 +93,10 @@ type TrackerOccurrence = {
   entries: Record<string, TrackerEntry>
 }
 
+type GoalSubItem = TrackerSubItem
+
+type GoalSubEntry = TrackerSubEntry
+
 type Goal = {
   id: string
   title: string
@@ -105,11 +109,13 @@ type Goal = {
   reminder: boolean
   checklistTemplate: string[]
   target: { mode: TargetMode; value: number; unit: string } | null
+  subItems: GoalSubItem[]
   status: EntryState
   score: number | null
   checklist: ChecklistStatus[]
   numericValue: number | null
   note: string
+  subEntries: Record<string, GoalSubEntry>
 }
 
 type AppState = {
@@ -162,6 +168,10 @@ type TrackerEditorState = {
   date?: string
 }
 
+type GoalEditorState = {
+  goalId: string
+}
+
 type HistoryItem = {
   occurrenceId: string
   date: string
@@ -200,6 +210,7 @@ type GoalDraft = {
   targetMode: TargetMode
   targetValue: string
   targetUnit: string
+  subItems: TrackerSubDraft[]
 }
 
 const storageKey = 'application-de-suivi-v2'
@@ -270,6 +281,7 @@ const defaultGoalDraft = (): GoalDraft => ({
   targetMode: 'atLeast',
   targetValue: '',
   targetUnit: '',
+  subItems: [],
 })
 
 function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
@@ -830,11 +842,13 @@ function normalizeGoal(raw: Partial<Goal>): Goal {
     reminder: raw.reminder ?? true,
     checklistTemplate: raw.checklistTemplate ?? [],
     target: raw.target ?? null,
+    subItems: (raw.subItems ?? []).map((item) => normalizeSubItem(item)),
     status: raw.status ?? 'unknown',
     score: raw.score ?? null,
     checklist: (raw.resultKind ?? 'tristate') === 'checklist' ? (raw.checklistTemplate ?? []).map((_, index) => normalizeChecklistState(raw.checklist?.[index])) : [],
     numericValue: raw.numericValue ?? null,
     note: raw.note ?? '',
+    subEntries: Object.fromEntries(((raw.subItems ?? []).map((item) => normalizeSubItem(item))).map((subItem) => [subItem.id, normalizeSubEntry(raw.subEntries?.[subItem.id], subItem)])),
   }
   goal.status = goalState(goal)
   return goal
@@ -1010,6 +1024,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [modalView, setModalView] = useState<ModuleKey | 'goals' | null>(null)
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
+  const [goalEditor, setGoalEditor] = useState<GoalEditorState | null>(null)
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
   const [celebration, setCelebration] = useState<CelebrationState | null>(null)
@@ -1204,6 +1219,7 @@ function App() {
   const isAdmin = isAdminEmail(currentUser?.email)
   const activeViewTitle = view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : view === 'goals' ? 'Objectifs' : 'Admin'
   const trackerEditorItem = trackerEditor ? state.trackerItems.find((candidate) => candidate.id === trackerEditor.itemId) ?? null : null
+  const goalEditorItem = goalEditor ? state.goals.find((candidate) => candidate.id === goalEditor.goalId) ?? null : null
   const trackerEditorOccurrence = trackerEditor
     ? trackerEditor.module === 'habits'
       ? buildHabitOccurrenceForDate(
@@ -1446,11 +1462,16 @@ function App() {
       target: goalDraft.resultKind === 'numeric' && goalDraft.targetValue !== ''
         ? { mode: goalDraft.targetMode, value: Number(goalDraft.targetValue), unit: goalDraft.targetUnit }
         : null,
+      subItems: goalDraft.subItems.map((subItem) => ({ id: subItem.id, title: subItem.title, inputKind: subItem.inputKind, checklistTemplate: subItem.inputKind === 'checklist' ? subItem.checklistItems : [], target: subItem.inputKind === 'numeric' && subItem.targetValue !== '' ? { mode: subItem.targetMode, value: Number(subItem.targetValue), unit: subItem.targetUnit } : null })),
       status: 'unknown',
       score: null,
       checklist: goalDraft.resultKind === 'checklist' ? goalDraft.checklistItems.map(() => 'unknown' as ChecklistStatus) : [],
       numericValue: null,
       note: '',
+      subEntries: Object.fromEntries(goalDraft.subItems.map((subItem) => {
+        const normalizedSubItem = { id: subItem.id, title: subItem.title, inputKind: subItem.inputKind, checklistTemplate: subItem.inputKind === 'checklist' ? subItem.checklistItems : [], target: subItem.inputKind === 'numeric' && subItem.targetValue !== '' ? { mode: subItem.targetMode, value: Number(subItem.targetValue), unit: subItem.targetUnit } : null }
+        return [subItem.id, normalizeSubEntry(undefined, normalizedSubItem)]
+      })),
     }
 
     if (editingGoalId) {
@@ -1674,6 +1695,51 @@ function App() {
     )
   }
 
+  function updateGoalSubEntryDraft(subItem: GoalSubItem, entry: Goal, patch: Partial<GoalSubEntry>) {
+    const current = entry.subEntries[subItem.id] ?? emptySubEntry(subItem)
+    const next = { ...current, ...patch }
+    next.state = deriveSubState(subItem, next)
+    updateGoal(entry.id, {
+      subEntries: {
+        ...entry.subEntries,
+        [subItem.id]: next,
+      },
+    })
+  }
+
+  function renderGoalEditorInput(goal: Goal) {
+    return (
+      <div className="editor-grid compact-editor-grid">
+        {renderLeafResponseEditor(goal.resultKind, goal.target, { state: goal.status, score: goal.score, checklist: goal.checklist, numericValue: goal.numericValue, note: goal.note }, goal.checklistTemplate, (patch) => updateGoal(goal.id, patch))}
+        {goal.subItems.length > 0 && (
+          <div className="subitem-group compact-subitem-group">
+            <div className="subitem-list">
+              {goal.subItems.map((subItem) => {
+                const subEntry = goal.subEntries[subItem.id] ?? emptySubEntry(subItem)
+                return (
+                  <section key={subItem.id} className="subitem-card compact-subitem-card">
+                    <div className="subitem-head compact-subitem-head">
+                      <strong>{subItem.title}</strong>
+                    </div>
+                    {renderLeafResponseEditor(subItem.inputKind, subItem.target, subEntry, subItem.checklistTemplate, (patch) => updateGoalSubEntryDraft(subItem, goal, patch))}
+                  </section>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function openGoalEditor(goalId: string) {
+    setGoalEditor({ goalId })
+  }
+
+  function closeGoalEditor() {
+    setGoalEditor(null)
+  }
+
   function renderTrackerEditorInput(item: TrackerItem) {
     const entry = trackerResponseDraft
     if (!entry) return null
@@ -1714,7 +1780,7 @@ function App() {
           value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
           onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
         >
-          <option value="">Ajouter un sous-objectif</option>
+          <option value="">Choisir une action</option>
           <option value="yes">Oui</option>
           <option value="no">Non</option>
         </select>
@@ -1727,7 +1793,7 @@ function App() {
           value={goal.score == null ? '' : String(goal.score)}
           onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
         >
-          <option value="">Ajouter un sous-objectif</option>
+          <option value="">Choisir une action</option>
           {likertOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -1811,6 +1877,7 @@ function App() {
         targetMode: goalToEdit.target?.mode ?? 'atLeast',
         targetValue: goalToEdit.target ? String(goalToEdit.target.value) : '',
         targetUnit: goalToEdit.target?.unit ?? '',
+        subItems: goalToEdit.subItems.map((subItem) => ({ id: subItem.id, title: subItem.title, inputKind: subItem.inputKind, checklistItems: [...subItem.checklistTemplate], newChecklistItem: '', targetMode: subItem.target?.mode ?? 'atLeast', targetValue: subItem.target ? String(subItem.target.value) : '', targetUnit: subItem.target?.unit ?? '' })),
       }
       setEditingGoalId(goalToEdit.id)
       setGoalDraft(draft)
@@ -2504,9 +2571,11 @@ function App() {
                     {monthLevelGoals.map((goal) => (
                       <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
                         <div className="goal-head">
-                          <div>
-                            <strong>{goal.title}</strong>
-                          </div>
+                          <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
+                            <div className="tracker-open-copy compact-tracker-open-copy">
+                              <strong>{goal.title}</strong>
+                            </div>
+                          </button>
                           <button
                             type="button"
                             className="ghost-icon tracker-menu-button"
@@ -2541,9 +2610,11 @@ function App() {
                             {weekGoals.map((goal) => (
                               <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)}`}>
                                 <div className="goal-head compact-goal-head">
-                                  <div>
-                                    <strong>{goal.title}</strong>
-                                  </div>
+                                  <button type="button" className="tracker-open goal-open" onClick={(event) => { event.stopPropagation(); openGoalEditor(goal.id) }} aria-label={`Renseigner ${goal.title}`}>
+                                    <div className="tracker-open-copy compact-tracker-open-copy">
+                                      <strong>{goal.title}</strong>
+                                    </div>
+                                  </button>
                                   <button
                                     type="button"
                                     className="ghost-icon tracker-menu-button"
@@ -2571,9 +2642,11 @@ function App() {
                 {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
                   <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
                     <div className="goal-head">
-                      <div>
-                        <strong>{goal.title}</strong>
-                      </div>
+                      <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
+                        <div className="tracker-open-copy compact-tracker-open-copy">
+                          <strong>{goal.title}</strong>
+                        </div>
+                      </button>
                     </div>
                     {renderGoalInput(goal)}
                   </article>
@@ -2581,6 +2654,30 @@ function App() {
               </div>
             )}
           </section>
+        )}
+
+        {goalEditor && goalEditorItem && (
+          <div className="modal-backdrop" role="presentation" onClick={closeGoalEditor}>
+            <div className="modal-card tracker-editor-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-head">
+                <div>
+                  <h3>{goalEditorItem.title}</h3>
+                  <div className="editor-context editor-context-minimal">
+                    <span className="ghost-pill">{goalEditorItem.horizon === 'week' ? 'Objectif de semaine' : goalEditorItem.horizon === 'month' ? 'Objectif du mois' : 'Objectif de l annee'}</span>
+                  </div>
+                </div>
+                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={closeGoalEditor}>×</button>
+              </div>
+              <div className="tracker-editor-body">
+                {renderGoalEditorInput(goalEditorItem)}
+                <div className="editor-actions-row">
+                  <div className="editor-actions">
+                    <button type="button" className="primary-button" onClick={closeGoalEditor}>Valider</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {trackerEditor && trackerEditorItem && trackerEditorOccurrence && (
@@ -2701,6 +2798,28 @@ function App() {
                       <input value={goalDraft.targetUnit} onChange={(event) => setGoalDraft({ ...goalDraft, targetUnit: event.target.value })} placeholder="Unite" />
                     </>
                   )}
+                  <div className="subitem-group compact-subitem-group">
+                    <div className="subitem-group-head">
+                      <strong>Sous-objectifs</strong>
+                      <button type="button" className="ghost-button compact-action" onClick={() => setGoalDraft({ ...goalDraft, subItems: [...goalDraft.subItems, defaultSubDraft()] })}>Ajouter un sous-objectif</button>
+                    </div>
+                    {goalDraft.subItems.map((subItem) => (
+                      <section key={subItem.id} className="subitem-card compact-subitem-card">
+                        <div className="subitem-head compact-subitem-head">
+                          <strong>Sous-objectif</strong>
+                          <button type="button" className="ghost-button compact-action compact-icon-action" onClick={() => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.filter((candidate) => candidate.id !== subItem.id) })}>×</button>
+                        </div>
+                        <input value={subItem.title} onChange={(event) => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.map((candidate) => candidate.id === subItem.id ? { ...candidate, title: event.target.value } : candidate) })} placeholder="Titre du sous-objectif" />
+                        <select value={subItem.inputKind} onChange={(event) => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.map((candidate) => candidate.id === subItem.id ? { ...candidate, inputKind: event.target.value as InputKind } : candidate) })}>
+                          <option value="tristate">Oui / Non</option>
+                          <option value="score">Echelle qualitative</option>
+                          <option value="checklist">Checklist</option>
+                          <option value="numeric">Valeur chiffree</option>
+                          <option value="note">Note libre</option>
+                        </select>
+                      </section>
+                    ))}
+                  </div>
                   <button type="submit">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
                 </form>
               ) : (
