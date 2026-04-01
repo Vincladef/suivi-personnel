@@ -179,6 +179,16 @@ type GoalEditorState = {
 
 type InstallState = 'hidden' | 'available' | 'manual' | 'installed'
 
+type NotificationSettings = {
+  enabled: boolean
+  dailyReminderEnabled: boolean
+  dailyReminderTime: string
+  timezone: string
+  skipIfTrackedToday: boolean
+  inactiveReminderEnabled: boolean
+  inactiveDaysThreshold: number
+}
+
 type HistoryItem = {
   occurrenceId: string
   date: string
@@ -221,6 +231,7 @@ type GoalDraft = {
 }
 
 const storageKey = 'application-de-suivi-v2'
+const vapidPublicKey = 'BC6y1nT7x6wJQX8wY3AmvU5M8k4X2rE0xQmY8QvJfB9XnS4xY_2F5D4X8nA7cP8m6eJmY0m2Q4c5mA8d2hR7f0'
 const debugStorageKey = 'application-de-suivi-debug-v1'
 const todayDate = new Date()
 todayDate.setHours(12, 0, 0, 0)
@@ -1046,6 +1057,22 @@ function App() {
   const [goalPeriodDate, setGoalPeriodDate] = useState(startOfMonth(today))
   const [installState, setInstallState] = useState<InstallState>('hidden')
   const [installHintOpen, setInstallHintOpen] = useState(false)
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    enabled: false,
+    dailyReminderEnabled: true,
+    dailyReminderTime: '07:00',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    skipIfTrackedToday: true,
+    inactiveReminderEnabled: true,
+    inactiveDaysThreshold: 3,
+  })
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false)
+  const [notificationPermissionState, setNotificationPermissionState] = useState<'default' | 'granted' | 'denied'>(() => {
+    if (typeof Notification === 'undefined') return 'default'
+    return Notification.permission
+  })
+  const [notificationStatusMessage, setNotificationStatusMessage] = useState('')
+  const [notificationSaving, setNotificationSaving] = useState(false)
   const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
@@ -1074,6 +1101,14 @@ function App() {
           updatedAt: serverTimestamp(),
           createdAt: serverTimestamp(),
         }, { merge: true })
+
+        const profileSnapshot = await getDoc(doc(firebaseDb, 'userProfiles', user.uid))
+        if (profileSnapshot.exists()) {
+          const profile = profileSnapshot.data() as { notificationSettings?: Partial<NotificationSettings> }
+          if (profile.notificationSettings) {
+            setNotificationSettings((current) => ({ ...current, ...profile.notificationSettings }))
+          }
+        }
 
         const snapshot = await getDoc(doc(firebaseDb, 'appStates', user.uid))
         if (snapshot.exists()) {
@@ -1149,6 +1184,7 @@ function App() {
         }, { merge: true }),
         setDoc(doc(firebaseDb, 'userProfiles', currentUser.uid), {
           email: currentUser.email ?? '',
+          notificationSettings,
           updatedAt: serverTimestamp(),
           createdAt: serverTimestamp(),
         }, { merge: true }),
@@ -1158,7 +1194,7 @@ function App() {
     }, 400)
 
     return () => window.clearTimeout(timeout)
-  }, [authReady, currentUser, remoteReady, state])
+  }, [authReady, currentUser, remoteReady, state, notificationSettings])
 
   useEffect(() => {
     if (!celebration) return
@@ -2084,6 +2120,90 @@ function App() {
     }
   }
 
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const rawData = window.atob(base64)
+    return Uint8Array.from(rawData, (char) => char.charCodeAt(0))
+  }
+
+  async function savePushSubscription(settings: NotificationSettings) {
+    if (!currentUser) return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      throw new Error('Notifications push non supportees sur cet appareil.')
+    }
+
+    const registration = await navigator.serviceWorker.ready
+    let subscription = await registration.pushManager.getSubscription()
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      })
+    }
+
+    const subscriptionJson = subscription.toJSON()
+
+    const idToken = await currentUser.getIdToken(true)
+    const response = await fetch('/.netlify/functions/push-register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        subscription: subscriptionJson,
+        settings,
+        userAgent: navigator.userAgent,
+      }),
+    })
+    const payload = await response.json() as { ok?: boolean; error?: string }
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || 'Impossible d enregistrer l abonnement push.')
+    }
+
+    await fetch('/.netlify/functions/push-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: subscriptionJson }),
+    }).catch(() => undefined)
+  }
+
+  async function saveNotificationSettings(nextSettings: NotificationSettings) {
+    if (!currentUser) return
+    setNotificationSaving(true)
+    setNotificationStatusMessage('')
+
+    try {
+      if (nextSettings.enabled) {
+        if (typeof Notification === 'undefined') {
+          throw new Error('Notifications non supportees sur cet appareil.')
+        }
+        let permission = Notification.permission
+        if (permission === 'default') {
+          permission = await Notification.requestPermission()
+        }
+        setNotificationPermissionState(permission)
+        if (permission !== 'granted') {
+          throw new Error('Permission de notification refusee.')
+        }
+        await savePushSubscription(nextSettings)
+      } else {
+        await setDoc(doc(firebaseDb, 'userProfiles', currentUser.uid), {
+          notificationSettings: nextSettings,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
+
+      setNotificationSettings(nextSettings)
+      setNotificationStatusMessage('Preferences enregistrees.')
+    } catch (error) {
+      setNotificationStatusMessage(error instanceof Error ? error.message : 'Impossible d enregistrer les notifications.')
+    } finally {
+      setNotificationSaving(false)
+    }
+  }
+
   async function triggerInstallApp() {
     if (installState === 'installed') return
 
@@ -2335,6 +2455,65 @@ function App() {
               )}
             </div>
           )}
+          <div className="install-app-block">
+            <button type="button" className="ghost-button install-app-button" onClick={() => setNotificationPanelOpen((current) => !current)}>
+              Notifications
+            </button>
+            {notificationPanelOpen && (
+              <div className="notification-panel">
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={notificationSettings.enabled}
+                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, enabled: event.target.checked })}
+                    disabled={notificationSaving}
+                  />
+                  <span>Activer les notifications</span>
+                </label>
+                <label className="settings-field">
+                  <span>Heure quotidienne</span>
+                  <input
+                    type="time"
+                    value={notificationSettings.dailyReminderTime}
+                    onChange={(event) => setNotificationSettings({ ...notificationSettings, dailyReminderTime: event.target.value })}
+                    onBlur={() => void saveNotificationSettings(notificationSettings)}
+                    disabled={!notificationSettings.enabled || notificationSaving}
+                  />
+                </label>
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={notificationSettings.skipIfTrackedToday}
+                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, skipIfTrackedToday: event.target.checked })}
+                    disabled={!notificationSettings.enabled || notificationSaving}
+                  />
+                  <span>Ne pas notifier si j ai deja repondu aujourd hui</span>
+                </label>
+                <label className="settings-toggle">
+                  <input
+                    type="checkbox"
+                    checked={notificationSettings.inactiveReminderEnabled}
+                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, inactiveReminderEnabled: event.target.checked })}
+                    disabled={!notificationSettings.enabled || notificationSaving}
+                  />
+                  <span>Rappel apres plusieurs jours sans suivi</span>
+                </label>
+                <label className="settings-field">
+                  <span>Nombre de jours sans suivi</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={notificationSettings.inactiveDaysThreshold}
+                    onChange={(event) => setNotificationSettings({ ...notificationSettings, inactiveDaysThreshold: Math.max(1, Number(event.target.value || 1)) })}
+                    onBlur={() => void saveNotificationSettings(notificationSettings)}
+                    disabled={!notificationSettings.enabled || !notificationSettings.inactiveReminderEnabled || notificationSaving}
+                  />
+                </label>
+                <p className="muted-inline install-app-hint">Fuseau horaire detecte : {notificationSettings.timezone}. Permission : {notificationPermissionState}.</p>
+                {notificationStatusMessage && <p className="muted-inline install-app-hint">{notificationStatusMessage}</p>}
+              </div>
+            )}
+          </div>
           <button type="button" className="ghost-button export-sheet-button" onClick={() => void exportGoogleSheet()} disabled={sheetExportLoading}>
             {sheetExportLoading ? 'Ouverture...' : 'Google Sheets'}
           </button>
