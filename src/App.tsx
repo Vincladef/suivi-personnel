@@ -2679,9 +2679,8 @@ function App() {
 
             <div className="tracker-list">
               {visibleHabitItems.length === 0 && (
-                <article className="empty-panel">
+                <article className="empty-panel subtle-empty-panel">
                   <h3>Aucune habitude</h3>
-                  <p>Ajoute seulement tes propres consignes.</p>
                 </article>
               )}
 
@@ -2796,9 +2795,8 @@ function App() {
 
             <div className="tracker-list">
               {visiblePerformanceItems.length === 0 && (
-                <article className="empty-panel">
+                <article className="empty-panel subtle-empty-panel">
                   <h3>Aucune performance</h3>
-                  <p>Ajoute tes axes de progression avant de lancer une iteration.</p>
                 </article>
               )}
               {visiblePerformanceItems.map((item) => {
@@ -2931,9 +2929,8 @@ function App() {
                           <strong>{week.label}</strong>
                         </div>
                         {weekGoals.length === 0 && (
-                          <div className="goal-empty-state">
+                          <div className="goal-empty-state subtle-empty-state">
                             <span>Aucun objectif cette semaine</span>
-                            <small>Ajoute ton premier objectif</small>
                           </div>
                         )}
                         {weekGoals.length > 0 && (

@@ -94,15 +94,15 @@ textarea {
   top: 0;
   left: 0;
   bottom: 0;
-  width: min(280px, 84vw);
-  padding: 1.15rem;
+  width: min(272px, 84vw);
+  padding: 1rem 1rem 0.95rem;
   display: grid;
   align-content: start;
-  gap: 1.15rem;
-  background: linear-gradient(180deg, rgba(26, 33, 43, 0.98), rgba(42, 52, 66, 0.96));
+  gap: 0.95rem;
+  background: linear-gradient(180deg, rgba(26, 33, 43, 0.985), rgba(42, 52, 66, 0.965));
   color: #f7f4ed;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 22px 0 44px rgba(11, 18, 29, 0.22);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 18px 0 36px rgba(11, 18, 29, 0.2);
   transition: transform 0.22s ease;
   z-index: 40;
 }
@@ -174,24 +174,24 @@ textarea {
 }
 
 .nav-link {
-  min-height: 50px;
-  padding: 0.95rem 1rem;
+  min-height: 44px;
+  padding: 0.78rem 0.9rem;
   text-align: left;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(247, 244, 237, 0.82);
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(247, 244, 237, 0.76);
+  font-weight: 650;
+  border: 1px solid rgba(255, 255, 255, 0.045);
 }
 
 .nav-link:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff8ed;
+  background: rgba(255, 255, 255, 0.075);
+  color: rgba(255, 248, 237, 0.96);
 }
 
 .nav-link.active {
-  background: linear-gradient(135deg, rgba(244, 226, 201, 0.96), rgba(255, 255, 255, 0.94));
+  background: linear-gradient(135deg, rgba(244, 226, 201, 0.92), rgba(255, 255, 255, 0.9));
   color: #29407b;
-  box-shadow: 0 14px 28px rgba(20, 28, 42, 0.18);
+  box-shadow: 0 10px 22px rgba(20, 28, 42, 0.14);
 }
 
 .main {
@@ -264,10 +264,10 @@ textarea {
 }
 
 .page-head h2 {
-  font-size: clamp(1.2rem, 1.02rem + 0.9vw, 1.55rem);
+  font-size: clamp(1.22rem, 1.05rem + 0.95vw, 1.62rem);
   letter-spacing: -0.03em;
-  font-weight: 800;
-  color: #172338;
+  font-weight: 820;
+  color: #142033;
 }
 
 .hamburger-button {
@@ -311,7 +311,7 @@ textarea {
 .goal-card,
 .empty-panel,
 .modal-card {
-  padding: 1.25rem;
+  padding: 1.12rem;
 }
 
 .sidebar-foot {
@@ -347,6 +347,7 @@ textarea {
   min-height: 76vh;
   grid-template-rows: auto 1fr;
   align-content: start;
+  gap: 0.82rem;
 }
 
 .surface-actions {
@@ -608,7 +609,7 @@ small,
 .compact-description,
 .empty-panel p {
   margin: 0;
-  color: #697486;
+  color: #5f6b7d;
 }
 
 .compact-description {
@@ -623,17 +624,17 @@ small,
   place-content: center;
   justify-items: center;
   text-align: center;
-  gap: 0.8rem;
+  gap: 0.45rem;
 }
 
 .empty-panel h3 {
-  font-size: clamp(1.35rem, 1.15rem + 0.6vw, 1.7rem);
+  font-size: clamp(1.18rem, 1.02rem + 0.45vw, 1.42rem);
   letter-spacing: -0.02em;
 }
 
 .empty-panel p {
   max-width: 28ch;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .empty-add {
@@ -642,7 +643,7 @@ small,
 
 .surface-head {
   align-items: flex-start;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.12rem;
 }
 
 .surface-head::after,
@@ -661,7 +662,7 @@ small,
 .tracker-card,
 .goal-card {
   min-height: 0;
-  gap: 0.75rem;
+  gap: 0.68rem;
 }
 
 .tracker-card:hover,
@@ -728,6 +729,59 @@ small,
 
 .empty-add {
   margin-top: 0.4rem;
+}
+
+
+.subtle-empty-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(250, 251, 253, 0.56));
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 14px 34px rgba(29, 36, 48, 0.05);
+}
+
+.subtle-empty-panel h3,
+.subtle-empty-state span {
+  color: rgba(31, 47, 70, 0.56);
+  font-weight: 650;
+}
+
+.subtle-empty-state {
+  padding: 0.7rem 0.2rem 0.35rem;
+}
+
+.subtle-empty-state small {
+  display: none;
+}
+
+.surface-head > .fab-button {
+  position: static;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.date-nav-label {
+  display: block;
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(1.08rem, 0.96rem + 0.55vw, 1.32rem);
+  font-weight: 800;
+  color: #17263d;
+}
+
+.surface-head strong,
+.tracker-category-label,
+.history-label {
+  color: #42536c;
+}
+
+.tracker-card,
+.goal-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 250, 253, 0.82));
 }
 
 .history-strip {
@@ -966,8 +1020,13 @@ small,
   }
 
   .surface-head > .fab-button {
+    position: fixed;
     right: max(1rem, env(safe-area-inset-right));
     bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 40;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
   }
 
   .main {
@@ -1509,14 +1568,23 @@ small,
 
 @media (max-width: 720px) {
   .surface-head > .fab-button {
+    position: fixed;
     right: max(1rem, env(safe-area-inset-right));
     bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 40;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
   }
 
   .impersonation-banner {
     gap: 0.65rem;
     padding: 0.72rem 0.82rem;
     border-radius: 16px;
+  }
+
+  .surface-panel {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
   .impersonation-banner-copy strong {
