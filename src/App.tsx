@@ -1432,34 +1432,28 @@ function App() {
 
     if (inputKind === 'tristate') {
       return (
-        <label className="field">
-          <span>Reponse</span>
-          <select
-            value={entry.state === 'success' ? 'yes' : entry.state === 'failed' ? 'no' : ''}
-            onChange={(event) => onPatch({ state: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
-          >
-            <option value="">Choisir</option>
-            <option value="yes">Oui</option>
-            <option value="no">Non</option>
-          </select>
-        </label>
+        <select
+          value={entry.state === 'success' ? 'yes' : entry.state === 'failed' ? 'no' : ''}
+          onChange={(event) => onPatch({ state: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
+        >
+          <option value="">Choisir</option>
+          <option value="yes">Oui</option>
+          <option value="no">Non</option>
+        </select>
       )
     }
 
     if (inputKind === 'score') {
       return (
-        <label className="field">
-          <span>Reponse qualitative</span>
-          <select
-            value={entry.score == null ? '' : String(entry.score)}
-            onChange={(event) => onPatch({ score: event.target.value === '' ? null : Number(event.target.value) })}
-          >
-            <option value="">Choisir</option>
-            {likertOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        <select
+          value={entry.score == null ? '' : String(entry.score)}
+          onChange={(event) => onPatch({ score: event.target.value === '' ? null : Number(event.target.value) })}
+        >
+          <option value="">Choisir</option>
+          {likertOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       )
     }
 
@@ -1469,25 +1463,20 @@ function App() {
 
     if (inputKind === 'numeric') {
       return (
-        <div className="editor-grid">
-          <label className="field">
-            <span>{target?.unit ? `Valeur (${target.unit})` : 'Valeur saisie'}</span>
-            <input
-              type="number"
-              value={entry.numericValue ?? ''}
-              onChange={(event) => onPatch({ numericValue: event.target.value === '' ? null : Number(event.target.value) })}
-            />
-          </label>
-          <span className="muted-inline">{target ? `${target.mode === 'atLeast' ? 'Objectif minimum' : target.mode === 'atMost' ? 'Maximum autorise' : 'Objectif exact'} : ${target.value}${target.unit ? ` ${target.unit}` : ''}` : ''}</span>
+        <div className="editor-stack">
+          <input
+            type="number"
+            value={entry.numericValue ?? ''}
+            onChange={(event) => onPatch({ numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+            placeholder={target?.unit ? `Valeur (${target.unit})` : 'Valeur'}
+          />
+          {target && <span className="editor-hint">objectif : {target.value}{target.unit ? ` ${target.unit}` : ''}</span>}
         </div>
       )
     }
 
     return (
-      <label className="field">
-        <span>Reponse libre</span>
-        <textarea value={entry.note} onChange={(event) => onPatch({ note: event.target.value })} placeholder="Observation, contexte, journal..." />
-      </label>
+      <textarea value={entry.note} onChange={(event) => onPatch({ note: event.target.value })} placeholder="Note..." />
     )
   }
 
@@ -1496,26 +1485,21 @@ function App() {
     if (!entry) return null
 
     return (
-      <div className="editor-grid">
-        <div className="field">
-          <span>Consigne principale</span>
-          {renderLeafResponseEditor(item.inputKind, item.target, entry, item.checklistTemplate, (patch) => {
-            const next = { ...entry, ...patch }
-            next.state = deriveState(item, next as TrackerEntry)
-            updateTrackerResponseDraft(next as TrackerEntry)
-          })}
-        </div>
+      <div className="editor-grid compact-editor-grid">
+        {renderLeafResponseEditor(item.inputKind, item.target, entry, item.checklistTemplate, (patch) => {
+          const next = { ...entry, ...patch }
+          next.state = deriveState(item, next as TrackerEntry)
+          updateTrackerResponseDraft(next as TrackerEntry)
+        })}
         {item.subItems.length > 0 && (
-          <div className="subitem-group">
-            <span className="history-label">Sous-consignes</span>
+          <div className="subitem-group compact-subitem-group">
             <div className="subitem-list">
               {item.subItems.map((subItem) => {
                 const subEntry = entry.subEntries[subItem.id] ?? emptySubEntry(subItem)
                 return (
-                  <section key={subItem.id} className="subitem-card">
-                    <div className="subitem-head">
+                  <section key={subItem.id} className="subitem-card compact-subitem-card">
+                    <div className="subitem-head compact-subitem-head">
                       <strong>{subItem.title}</strong>
-                      <span className={`pill ${stateClassName(subEntry.state)}`}>{entryLabelForInput(subItem.inputKind, subEntry.state, subEntry.score)}</span>
                     </div>
                     {renderLeafResponseEditor(subItem.inputKind, subItem.target, subEntry, subItem.checklistTemplate, (patch) => updateTrackerSubEntryDraft(subItem, patch))}
                   </section>
@@ -1532,34 +1516,28 @@ function App() {
   function renderGoalInput(goal: Goal) {
     if (goal.resultKind === 'tristate') {
       return (
-        <label className="field">
-          <span>Reponse</span>
-          <select
-            value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
-            onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
-          >
-            <option value="">Choisir</option>
-            <option value="yes">Oui</option>
-            <option value="no">Non</option>
-          </select>
-        </label>
+        <select
+          value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
+          onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
+        >
+          <option value="">Choisir</option>
+          <option value="yes">Oui</option>
+          <option value="no">Non</option>
+        </select>
       )
     }
 
     if (goal.resultKind === 'score') {
       return (
-        <label className="field">
-          <span>Reponse qualitative</span>
-          <select
-            value={goal.score == null ? '' : String(goal.score)}
-            onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
-          >
-            <option value="">Choisir</option>
-            {likertOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        <select
+          value={goal.score == null ? '' : String(goal.score)}
+          onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
+        >
+          <option value="">Choisir</option>
+          {likertOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       )
     }
 
@@ -1569,26 +1547,19 @@ function App() {
 
     if (goal.resultKind === 'numeric') {
       return (
-        <div className="editor-grid">
-          <label className="field">
-            <span>{goal.target?.unit ? `Valeur (${goal.target.unit})` : 'Valeur saisie'}</span>
-            <input
-              type="number"
-              value={goal.numericValue ?? ''}
-              onChange={(event) => updateGoal(goal.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
-            />
-          </label>
-          <span className="muted-inline">{goal.target ? `${goal.target.mode === 'atLeast' ? 'Objectif minimum' : goal.target.mode === 'atMost' ? 'Maximum autorise' : 'Objectif exact'} : ${goal.target.value}${goal.target.unit ? ` ${goal.target.unit}` : ''}` : ''}</span>
+        <div className="editor-stack">
+          <input
+            type="number"
+            value={goal.numericValue ?? ''}
+            onChange={(event) => updateGoal(goal.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
+            placeholder={goal.target?.unit ? `Valeur (${goal.target.unit})` : 'Valeur'}
+          />
+          {goal.target && <span className="editor-hint">objectif : {goal.target.value}{goal.target.unit ? ` ${goal.target.unit}` : ''}</span>}
         </div>
       )
     }
 
-    return (
-      <label className="field">
-        <span>Reponse libre</span>
-        <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Resultat, apprentissage, synthese..." />
-      </label>
-    )
+    return <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Note..." />
   }
 
   function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
@@ -2143,10 +2114,7 @@ function App() {
               <div className="modal-head">
                 <div>
                   <h3>{trackerEditorItem.title}</h3>
-                  <div className="editor-context">
-                    {entryLabelForInput(trackerEditorItem.inputKind, trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown', trackerEditorOccurrence.entries[trackerEditorItem.id]?.score) && (
-                      <span className={`pill ${stateClassName(trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown')}`}>{entryLabelForInput(trackerEditorItem.inputKind, trackerEditorOccurrence.entries[trackerEditorItem.id]?.state ?? 'unknown', trackerEditorOccurrence.entries[trackerEditorItem.id]?.score)}</span>
-                    )}
+                  <div className="editor-context editor-context-minimal">
                     <span className="ghost-pill">{trackerEditor.module === 'habits' ? formatLongDate(trackerEditor.date) : trackerEditorOccurrence.label}</span>
                   </div>
                 </div>
@@ -2155,7 +2123,7 @@ function App() {
               <div className="tracker-editor-body">
                 {renderTrackerEditorInput(trackerEditorItem)}
                 <div className="editor-actions">
-                  <button type="button" className="ghost-button" onClick={saveTrackerEditor}>Valider</button>
+                  <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
                 </div>
               </div>
             </div>

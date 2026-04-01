@@ -672,6 +672,96 @@ small,
   gap: 0.8rem;
 }
 
+.auth-main {
+  align-items: center;
+}
+
+.auth-panel {
+  width: min(520px, 100%);
+  min-height: auto;
+  gap: 1.15rem;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 189, 0.55), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 252, 255, 0.9));
+}
+
+.auth-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.auth-kicker {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  background: rgba(40, 64, 125, 0.08);
+  color: #28407d;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-panel strong {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  letter-spacing: -0.03em;
+  color: #172338;
+}
+
+.auth-description {
+  max-width: 42ch;
+}
+
+.auth-field {
+  gap: 0.42rem;
+}
+
+.auth-google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.72rem;
+  padding: 0.88rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(42, 55, 82, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f2f46;
+  box-shadow: 0 10px 24px rgba(29, 36, 48, 0.08);
+  font-weight: 800;
+}
+
+.auth-google-mark {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ffffff, #f1f4fb);
+  border: 1px solid rgba(42, 55, 82, 0.1);
+  color: #3150ab;
+  font-weight: 900;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: #7f8897;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(63, 84, 122, 0), rgba(63, 84, 122, 0.18), rgba(63, 84, 122, 0));
+}
+
 .compact-form button[type='submit'] {
   margin-top: 0.15rem;
 }
@@ -990,11 +1080,29 @@ small,
   gap: 0.85rem;
 }
 
+.compact-editor-grid {
+  gap: 0.7rem;
+}
+
+.editor-stack {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.editor-hint {
+  color: #8a94a4;
+  font-size: 0.82rem;
+}
+
 .editor-context {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.45rem;
+}
+
+.editor-context-minimal {
+  margin-top: 0.2rem;
 }
 
 @media (max-width: 720px) {
@@ -1093,6 +1201,28 @@ small,
 .editor-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.primary-button {
+  padding: 0.82rem 1rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #28407d, #506887);
+  color: #f8fbff;
+  box-shadow: 0 16px 34px rgba(29, 36, 48, 0.18);
+  font-weight: 800;
+}
+
+.compact-subitem-group {
+  gap: 0.55rem;
+}
+
+.compact-subitem-card {
+  gap: 0.55rem;
+  padding: 0.72rem 0.78rem;
+}
+
+.compact-subitem-head {
+  gap: 0.4rem;
 }
 
 
