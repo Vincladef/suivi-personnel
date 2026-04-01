@@ -127,6 +127,7 @@ type AppState = {
   trackerItems: TrackerItem[]
   occurrences: TrackerOccurrence[]
   goals: Goal[]
+  goalPeriodNotes?: Record<string, string>
   lastTrackerCategory?: string
   lastPerformanceCategoryFilter?: string
 }
@@ -1071,6 +1072,9 @@ function App() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [goalViewMode, setGoalViewMode] = useState<'month' | 'year'>('month')
   const [goalPeriodDate, setGoalPeriodDate] = useState(startOfMonth(today))
+  const [goalNoteEditorKey, setGoalNoteEditorKey] = useState<string | null>(null)
+  const [goalNoteDraft, setGoalNoteDraft] = useState('')
+  const [goalNoteEditorTitle, setGoalNoteEditorTitle] = useState('')
   const [installState, setInstallState] = useState<InstallState>('hidden')
   const [installHintOpen, setInstallHintOpen] = useState(false)
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(currentNotificationSettingsFallback)
@@ -1276,6 +1280,8 @@ function App() {
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
   const yearFinalDueDate = goalDueDateForHorizon('year', goalPeriodDate, monthWeeks)
+  const monthNoteKey = `month:${startOfMonth(goalPeriodDate)}`
+  const yearNoteKey = `year:${yearLabel(goalPeriodDate)}`
   const currentMonthStart = startOfMonth(goalPeriodDate)
   const currentMonthEnd = endOfMonth(goalPeriodDate)
   const currentYear = new Date(`${goalPeriodDate}T12:00:00`).getFullYear()
@@ -1887,6 +1893,29 @@ function App() {
     setModalView(null)
     setEditingTrackerId(null)
     writeDebugLog('tracker-item-deleted', { itemId, module: item.module, title: item.title })
+  }
+
+
+  function openGoalNoteEditor(noteKey: string, label: string) {
+    setGoalNoteEditorKey(noteKey)
+    setGoalNoteDraft(state.goalPeriodNotes?.[noteKey] ?? '')
+    setGoalNoteEditorTitle(label)
+  }
+
+  function closeGoalNoteEditor() {
+    setGoalNoteEditorKey(null)
+    setGoalNoteDraft('')
+    setGoalNoteEditorTitle('')
+  }
+
+  function saveGoalNote() {
+    if (!goalNoteEditorKey) return
+    const nextNotes = { ...(state.goalPeriodNotes ?? {}) }
+    const trimmed = goalNoteDraft.trim()
+    if (trimmed) nextNotes[goalNoteEditorKey] = goalNoteDraft.trim()
+    else delete nextNotes[goalNoteEditorKey]
+    patchState({ goalPeriodNotes: nextNotes })
+    closeGoalNoteEditor()
   }
 
   function openGoalModal(weekDate?: string | null, goalToEdit?: Goal | null) {
@@ -2889,6 +2918,14 @@ function App() {
                   <button type="button" className="date-arrow" onClick={() => setGoalPeriodDate(goalViewMode === 'month' ? shiftMonth(goalPeriodDate, -1) : shiftYear(goalPeriodDate, -1))} aria-label="Periode precedente">‹</button>
                   <strong className="date-nav-label">{goalViewMode === 'month' ? monthLabel(goalPeriodDate) : yearLabel(goalPeriodDate)}</strong>
                   <button type="button" className="date-arrow" onClick={() => setGoalPeriodDate(goalViewMode === 'month' ? shiftMonth(goalPeriodDate, 1) : shiftYear(goalPeriodDate, 1))} aria-label="Periode suivante">›</button>
+                  <button
+                    type="button"
+                    className="ghost-icon subtle-note-button"
+                    aria-label={goalViewMode === 'month' ? 'Note du mois' : 'Note de l annee'}
+                    onClick={() => openGoalNoteEditor(goalViewMode === 'month' ? monthNoteKey : yearNoteKey, goalViewMode === 'month' ? `Note · ${monthLabel(goalPeriodDate)}` : `Note · ${yearLabel(goalPeriodDate)}`)}
+                  >
+                    ✎
+                  </button>
                 </div>
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={() => openGoalModal(null, null)}>+</button>
@@ -2927,6 +2964,17 @@ function App() {
                       <section key={week.start} className="goal-week-block minimal-week-block" onClick={() => weekGoals.length === 0 ? openGoalModal(week.start) : undefined}>
                         <div className="goal-week-head minimal-week-head">
                           <strong>{week.label}</strong>
+                          <button
+                            type="button"
+                            className="ghost-icon subtle-note-button"
+                            aria-label={`Note ${week.label}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              openGoalNoteEditor(`week:${week.start}`, `Note · ${week.label}`)
+                            }}
+                          >
+                            ✎
+                          </button>
                         </div>
                         {weekGoals.length === 0 && (
                           <div className="goal-empty-state subtle-empty-state">
@@ -3000,6 +3048,28 @@ function App() {
                   <div className="editor-actions">
                     <button type="button" className="primary-button" onClick={closeGoalEditor}>Valider</button>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {goalNoteEditorKey && (
+          <div className="modal-backdrop" role="presentation" onClick={closeGoalNoteEditor}>
+            <div className="modal-card note-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-head">
+                <h3>{goalNoteEditorTitle}</h3>
+                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={closeGoalNoteEditor}>×</button>
+              </div>
+              <div className="form-grid compact-form">
+                <textarea
+                  value={goalNoteDraft}
+                  onChange={(event) => setGoalNoteDraft(event.target.value)}
+                  placeholder="Ecrire une note..."
+                  rows={7}
+                />
+                <div className="editor-actions">
+                  <button type="button" className="primary-button" onClick={saveGoalNote}>Enregistrer</button>
                 </div>
               </div>
             </div>

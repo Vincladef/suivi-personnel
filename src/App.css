@@ -1979,3 +1979,37 @@ small,
 .global-rest-note-label {
   color: rgba(63, 74, 90, 0.46);
 }
+
+
+.subtle-note-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(53, 66, 85, 0.06);
+  color: rgba(48, 60, 78, 0.42);
+  box-shadow: none;
+}
+
+.subtle-note-button:hover {
+  background: rgba(255, 255, 255, 0.48);
+  color: rgba(48, 60, 78, 0.58);
+}
+
+.goal-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.note-modal {
+  width: min(560px, calc(100vw - 1.5rem));
+}
+
+.note-modal textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+}
