@@ -1042,7 +1042,9 @@ function App() {
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
   const resolvedPerformanceOccurrence = selectedPerformanceOccurrence ?? createOccurrence('performances', 'standard', state.trackerItems, state.occurrences)
   const habitRestItems = habitItems.filter((item) => (resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
+  const visibleHabitItems = habitItems.filter((item) => (resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state !== 'rest')
   const performanceRestItems = performanceItems.filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
+  const visiblePerformanceItems = performanceItems.filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state !== 'rest')
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
@@ -1963,13 +1965,13 @@ function App() {
             )}
 
             <div className="tracker-list">
-              {habitItems.length === 0 && (
+              {visibleHabitItems.length === 0 && (
                 <article className="empty-panel">
                   <h3>Aucune habitude</h3>
                   <p>Ajoute seulement tes propres consignes.</p>
                 </article>
               )}
-              {habitItems.map((item) => {
+              {visibleHabitItems.map((item) => {
                 const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                 return (
                 <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
@@ -2045,13 +2047,13 @@ function App() {
             </div>
 
             <div className="tracker-list">
-              {performanceItems.length === 0 && (
+              {visiblePerformanceItems.length === 0 && (
                 <article className="empty-panel">
                   <h3>Aucune performance</h3>
                   <p>Ajoute tes axes de progression avant de lancer une iteration.</p>
                 </article>
               )}
-              {performanceItems.map((item) => {
+              {visiblePerformanceItems.map((item) => {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 return (
