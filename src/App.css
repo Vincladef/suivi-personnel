@@ -2191,3 +2191,22 @@ small,
 }
 
 
+
+
+.tracker-open-copy .tracker-title.state-text-success,
+.tracker-open-copy .tracker-title.state-tone-success-3,
+.tracker-open-copy .tracker-title.state-tone-success-4 {
+  color: var(--tone-kaki-strong-text) !important;
+}
+
+.tracker-open-copy .tracker-title.state-text-failed,
+.tracker-open-copy .tracker-title.state-tone-failed-0,
+.tracker-open-copy .tracker-title.state-tone-failed-1 {
+  color: var(--tone-red-strong-text) !important;
+}
+
+.tracker-open-copy .tracker-title.state-text-excused,
+.tracker-open-copy .tracker-title.state-tone-neutral-2,
+.tracker-open-copy .tracker-title.state-text-rest {
+  color: var(--tone-yellow-text) !important;
+}
