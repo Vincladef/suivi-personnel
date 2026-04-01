@@ -1435,6 +1435,26 @@ function App() {
   }
 
 
+  function deleteTrackerEntry(occurrenceId: string, itemId: string) {
+    const item = state.trackerItems.find((candidate) => candidate.id === itemId)
+    if (!item) return
+
+    const nextOccurrences = state.occurrences.map((occurrence) => {
+      if (occurrence.id !== occurrenceId) return occurrence
+      const nextEntries = { ...occurrence.entries }
+      delete nextEntries[itemId]
+      return {
+        ...occurrence,
+        entries: nextEntries,
+      }
+    })
+
+    patchState({ occurrences: nextOccurrences })
+    writeDebugLog('tracker-entry-deleted', { occurrenceId, itemId, module: item.module })
+    closeTrackerEditor()
+  }
+
+
   function addChecklistItemToTrackerDraft() {
     const value = trackerDraft.newChecklistItem.trim()
     if (!value) return
@@ -3228,7 +3248,14 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                       }}
                     />
                   </div>
-                  <div className="editor-actions">
+                  <div className="editor-actions split-actions">
+                    <button
+                      type="button"
+                      className="ghost-button danger-button"
+                      onClick={() => deleteTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id)}
+                    >
+                      Supprimer
+                    </button>
                     <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
                   </div>
                 </div>
