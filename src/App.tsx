@@ -2651,16 +2651,12 @@ function App() {
         </header>
 
         {isImpersonating && impersonationTarget && (
-          <section className="panel surface-panel impersonation-banner" role="status" aria-live="polite">
-            <div className="surface-head">
-              <div>
-                <strong>Mode admin: vue du compte</strong>
-                <p className="muted-inline">Session reelle: {currentUser.email || currentUser.uid}</p>
-                <p className="muted-inline">Compte affiche: {effectiveAccountLabel}</p>
-                <p className="muted-inline">UID cible: {impersonationTarget.uid}</p>
-              </div>
-              <button type="button" className="ghost-button" onClick={exitImpersonation}>Quitter</button>
+          <section className="impersonation-banner" role="status" aria-live="polite">
+            <div className="impersonation-banner-copy">
+              <strong>Mode admin</strong>
+              <span className="muted-inline">{effectiveAccountLabel}</span>
             </div>
+            <button type="button" className="ghost-button compact-action impersonation-exit" onClick={exitImpersonation}>Quitter</button>
           </section>
         )}
 

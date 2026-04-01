@@ -227,8 +227,40 @@ textarea {
 
 .impersonation-banner {
   width: min(980px, 100%);
-  border: 1px solid rgba(183, 111, 39, 0.24);
-  background: linear-gradient(135deg, rgba(255, 246, 225, 0.98), rgba(255, 237, 206, 0.96));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 18px;
+  border: 1px solid rgba(183, 111, 39, 0.18);
+  background: linear-gradient(135deg, rgba(255, 246, 225, 0.94), rgba(255, 237, 206, 0.9));
+  box-shadow: 0 10px 24px rgba(116, 83, 34, 0.08);
+}
+
+.impersonation-banner-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.impersonation-banner-copy strong {
+  font-size: 0.95rem;
+  color: #6d4d18;
+}
+
+.impersonation-banner-copy .muted-inline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.impersonation-exit {
+  min-height: 40px;
+  padding: 0.55rem 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .page-head h2 {
@@ -1479,6 +1511,25 @@ small,
   .surface-head > .fab-button {
     right: max(1rem, env(safe-area-inset-right));
     bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .impersonation-banner {
+    gap: 0.65rem;
+    padding: 0.72rem 0.82rem;
+    border-radius: 16px;
+  }
+
+  .impersonation-banner-copy strong {
+    font-size: 0.9rem;
+  }
+
+  .impersonation-banner-copy .muted-inline {
+    font-size: 0.84rem;
+  }
+
+  .impersonation-exit {
+    min-height: 36px;
+    padding: 0.48rem 0.72rem;
   }
 
   .date-nav-controls {
