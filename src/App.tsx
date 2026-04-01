@@ -1577,6 +1577,17 @@ function App() {
     const item = state.trackerItems.find((candidate) => candidate.id === itemId)
     if (!item) return
 
+    if (module === 'performances' && !occurrenceId) {
+      const createdOccurrence = createOccurrence('performances', 'standard', state.trackerItems, state.occurrences)
+      patchState({ occurrences: [...state.occurrences, createdOccurrence] })
+      setPerformanceOccurrenceId(createdOccurrence.id)
+      updateTrackerResponseDraft(cloneEntry(createdOccurrence.entries[itemId]))
+      setTrackerEditor({ module, itemId, occurrenceId: createdOccurrence.id, date })
+      writeDebugLog('performance-occurrence-created-on-open', { itemId, occurrenceId: createdOccurrence.id })
+      writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId: createdOccurrence.id, date })
+      return
+    }
+
     const occurrence = module === 'habits'
       ? buildHabitOccurrenceForDate(
           date ?? selectedHabitDate,
@@ -2038,9 +2049,8 @@ function App() {
                     <button
                       type="button"
                       className="tracker-open"
-                      onClick={() => selectedPerformanceOccurrence && openTrackerEditor('performances', item.id, selectedPerformanceOccurrence.id)}
+                      onClick={() => openTrackerEditor('performances', item.id, selectedPerformanceOccurrence?.id ?? '')}
                       aria-label={`Renseigner ${item.title}`}
-                      disabled={!selectedPerformanceOccurrence}
                     >
                       <div className="tracker-open-copy">
                         <strong>{item.title}</strong>
@@ -2063,7 +2073,7 @@ function App() {
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
-                  {!selectedPerformanceOccurrence && <p className="muted-inline">Cree d abord une iteration pour saisir tes performances.</p>}
+                  {!selectedPerformanceOccurrence && <p className="muted-inline">Une iteration sera creee automatiquement a la premiere saisie.</p>}
                 </article>
               )})}
             </div>
