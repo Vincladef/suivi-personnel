@@ -1,21 +1,36 @@
 {
+  "id": "/",
   "name": "Suivi personnel",
   "short_name": "Suivi",
-  "start_url": "/",
+  "description": "Application web de suivi personnel pour habitudes, performances et objectifs.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#eef2f6",
   "theme_color": "#28407d",
-  "description": "Application web de suivi personnel pour habitudes, performances et objectifs.",
+  "categories": ["productivity", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
