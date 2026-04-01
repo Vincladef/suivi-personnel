@@ -1687,6 +1687,19 @@ function App() {
     patchState({ goals: nextGoals })
   }
 
+
+  function deleteGoal(goalId: string) {
+    const goal = state.goals.find((candidate) => candidate.id === goalId)
+    if (!goal) return
+    patchState({
+      goals: state.goals.filter((candidate) => candidate.id !== goalId),
+    })
+    writeDebugLog('goal-deleted', { goalId, title: goal.title, horizon: goal.horizon })
+    setGoalDraft(defaultGoalDraft())
+    setEditingGoalId(null)
+    setModalView(null)
+  }
+
   function goalStatusTone(goal: Goal): 'success' | 'neutral' | 'failed' | 'unknown' {
     if (goal.resultKind === 'tristate') {
       if (goal.status === 'success') return 'success'
@@ -3361,7 +3374,18 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                       </section>
                     ))}
                   </div>
-                  <button type="submit">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
+                  <div className="editor-actions split-actions">
+                    {editingGoalId && (
+                      <button
+                        type="button"
+                        className="ghost-button danger-button"
+                        onClick={() => deleteGoal(editingGoalId)}
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                    <button type="submit">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
+                  </div>
                 </form>
               ) : (
                 <form className="form-grid compact-form" onSubmit={saveTrackerItem}>
