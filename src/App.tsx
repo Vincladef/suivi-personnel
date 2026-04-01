@@ -1965,9 +1965,8 @@ function App() {
     }
 
     const isMobile = /android|iphone|ipad|ipod/i.test(window.navigator.userAgent)
-    const isiOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
     if (isMobile) {
-      setInstallState(isiOS ? 'manual' : 'hidden')
+      setInstallState('manual')
     }
 
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -2330,7 +2329,7 @@ function App() {
                 {installState === 'installed' ? 'App installee' : 'Ajouter a l ecran d accueil'}
               </button>
               {installHintOpen && installState === 'manual' && (
-                <p className="muted-inline install-app-hint">Sur iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
+                <p className="muted-inline install-app-hint">Android : menu du navigateur puis Installer l application ou Ajouter a l ecran d accueil. iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
               )}
             </div>
           )}
