@@ -62,26 +62,44 @@ async function createServiceAccountAccessToken(serviceAccount, scopes) {
 }
 
 async function verifyFirebaseUser(idToken, apiKey) {
-  const response = await fetch(`${FIREBASE_AUTH_LOOKUP_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Firebase auth lookup failed (${response.status}): ${await response.text()}`)
+  const attempts = [idToken]
+  const parts = idToken.split('.')
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+      const rawProviderToken = payload.firebase?.sign_in_provider === 'google.com' ? payload.identities?.['google.com']?.[0] : null
+      if (rawProviderToken && typeof rawProviderToken === 'string' && rawProviderToken !== idToken) {
+        attempts.push(rawProviderToken)
+      }
+    } catch {
+      // ignore decode fallback
+    }
   }
 
-  const payload = await response.json()
-  const user = payload.users?.[0]
-  if (!user?.localId) {
-    throw new Error('Authenticated user not found.')
+  let lastError = ''
+  for (const token of attempts) {
+    const response = await fetch(`${FIREBASE_AUTH_LOOKUP_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token }),
+    })
+
+    if (!response.ok) {
+      lastError = `Firebase auth lookup failed (${response.status}): ${await response.text()}`
+      continue
+    }
+
+    const payload = await response.json()
+    const user = payload.users?.[0]
+    if (user?.localId) {
+      return {
+        uid: user.localId,
+        email: user.email ?? '',
+      }
+    }
   }
 
-  return {
-    uid: user.localId,
-    email: user.email ?? '',
-  }
+  throw new Error(lastError || 'Authenticated user not found.')
 }
 
 async function firestoreGetDocument(projectId, path, accessToken) {

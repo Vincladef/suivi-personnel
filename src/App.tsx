@@ -1964,10 +1964,9 @@ function App() {
 
     setSheetExportLoading(true)
     setSheetExportError('')
-    const pendingWindow = window.open('', '_blank', 'noopener,noreferrer')
 
     try {
-      const idToken = await currentUser.getIdToken()
+      const idToken = await currentUser.getIdToken(true)
       const response = await fetch('/.netlify/functions/export-google-sheet', {
         method: 'POST',
         headers: {
@@ -1980,13 +1979,8 @@ function App() {
         throw new Error(payload.error || 'Export Google Sheets impossible.')
       }
 
-      if (pendingWindow) {
-        pendingWindow.location.href = payload.url
-      } else {
-        window.open(payload.url, '_blank', 'noopener,noreferrer')
-      }
+      window.open(payload.url, '_blank', 'noopener,noreferrer')
     } catch (error) {
-      pendingWindow?.close()
       setSheetExportError(error instanceof Error ? error.message : 'Export Google Sheets impossible.')
     } finally {
       setSheetExportLoading(false)
