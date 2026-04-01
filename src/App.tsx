@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore'
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  type User,
+} from 'firebase/auth'
 import './App.css'
+import { firebaseAuth, firebaseDb, googleAuthProvider, isAdminEmail } from './firebase'
 
 declare global {
   interface Window {
@@ -11,7 +30,7 @@ declare global {
 }
 
 type ModuleKey = 'habits' | 'performances'
-type ViewKey = 'habits' | 'performances' | 'goals'
+type ViewKey = 'habits' | 'performances' | 'goals' | 'admin'
 type InputKind = 'tristate' | 'score' | 'checklist' | 'numeric' | 'note'
 type Priority = 'high' | 'medium' | 'low' | 'archived'
 type EntryState = 'unknown' | 'success' | 'failed' | 'excused' | 'rest' | 'inactive'
@@ -150,6 +169,15 @@ type CelebrationState = {
   level: 1 | 2 | 3 | 4
   streak: number
   token: number
+}
+
+type AuthMode = 'login' | 'register'
+
+type AdminProfile = {
+  id: string
+  email: string
+  updatedAt: string | null
+  createdAt: string | null
 }
 
 type GoalDraft = {
@@ -915,6 +943,16 @@ function HistoryCarousel({
 function App() {
   const [view, setView] = useState<ViewKey>('habits')
   const [state, setState] = useState<AppState>(() => loadState())
+  const [authReady, setAuthReady] = useState(false)
+  const [remoteReady, setRemoteReady] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [adminProfiles, setAdminProfiles] = useState<AdminProfile[]>([])
+  const [adminLoading, setAdminLoading] = useState(false)
   const [selectedHabitDate, setSelectedHabitDate] = useState(today)
   const [performanceOccurrenceId, setPerformanceOccurrenceId] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -936,6 +974,86 @@ function App() {
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+      setCurrentUser(user)
+      setAuthError('')
+
+      if (!user) {
+        setRemoteReady(false)
+        setAuthReady(true)
+        return
+      }
+
+      try {
+        await setDoc(doc(firebaseDb, 'userProfiles', user.uid), {
+          email: user.email ?? '',
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        }, { merge: true })
+
+        const snapshot = await getDoc(doc(firebaseDb, 'appStates', user.uid))
+        if (snapshot.exists()) {
+          const data = snapshot.data() as { state?: Partial<AppState> }
+          if (data.state) {
+            setState(normalizeState(data.state))
+          }
+        } else {
+          const localState = loadState()
+          const hasLocalData = localState.trackerItems.length > 0 || localState.occurrences.length > 0 || localState.goals.length > 0
+
+          if (hasLocalData) {
+            writeDebugLog('remote-state-missing-seeding-from-local', {
+              uid: user.uid,
+              email: user.email ?? '',
+              trackerItems: localState.trackerItems.length,
+              occurrences: localState.occurrences.length,
+              goals: localState.goals.length,
+            })
+
+            await setDoc(doc(firebaseDb, 'appStates', user.uid), {
+              email: user.email ?? '',
+              state: localState,
+              updatedAt: serverTimestamp(),
+            }, { merge: true })
+
+            setState(localState)
+          }
+        }
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Impossible de charger les donnees du compte.')
+      } finally {
+        setRemoteReady(true)
+        setAuthReady(true)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!authReady || !currentUser || !remoteReady) return
+
+    const timeout = window.setTimeout(() => {
+      void Promise.all([
+        setDoc(doc(firebaseDb, 'appStates', currentUser.uid), {
+          email: currentUser.email ?? '',
+          state,
+          updatedAt: serverTimestamp(),
+        }, { merge: true }),
+        setDoc(doc(firebaseDb, 'userProfiles', currentUser.uid), {
+          email: currentUser.email ?? '',
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        }, { merge: true }),
+      ]).catch((error) => {
+        setAuthError(error instanceof Error ? error.message : 'Impossible de synchroniser les donnees.')
+      })
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [authReady, currentUser, remoteReady, state])
 
   useEffect(() => {
     if (!celebration) return
@@ -965,7 +1083,8 @@ function App() {
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
   const sortedGoals = sortGoals(state.goals)
-  const activeViewTitle = view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : 'Objectifs'
+  const isAdmin = isAdminEmail(currentUser?.email)
+  const activeViewTitle = view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : view === 'goals' ? 'Objectifs' : 'Admin'
   const trackerEditorItem = trackerEditor ? state.trackerItems.find((candidate) => candidate.id === trackerEditor.itemId) ?? null : null
   const trackerEditorOccurrence = trackerEditor
     ? trackerEditor.module === 'habits'
@@ -1535,6 +1654,172 @@ function App() {
     writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
     closeTrackerEditor()
   }
+  useEffect(() => {
+    if (!isAdmin && view === 'admin') {
+      setView('habits')
+    }
+  }, [isAdmin, view])
+
+  useEffect(() => {
+    if (!isAdmin || view !== 'admin') return
+
+    let cancelled = false
+
+    async function loadAdminProfiles() {
+      setAdminLoading(true)
+      try {
+        const snapshot = await getDocs(query(collection(firebaseDb, 'userProfiles'), orderBy('updatedAt', 'desc')))
+        if (cancelled) return
+        setAdminProfiles(snapshot.docs.map((entry) => {
+          const data = entry.data() as { email?: string; updatedAt?: { toDate?: () => Date }; createdAt?: { toDate?: () => Date } }
+          return {
+            id: entry.id,
+            email: data.email ?? '',
+            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : null,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,
+          }
+        }))
+      } catch (error) {
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : 'Impossible de charger la vue admin.')
+        }
+      } finally {
+        if (!cancelled) setAdminLoading(false)
+      }
+    }
+
+    void loadAdminProfiles()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAdmin, view])
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setAuthSubmitting(true)
+    setAuthError('')
+
+    try {
+      if (authMode === 'register') {
+        await createUserWithEmailAndPassword(firebaseAuth, authEmail.trim(), authPassword)
+      } else {
+        await signInWithEmailAndPassword(firebaseAuth, authEmail.trim(), authPassword)
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Authentification impossible.')
+    } finally {
+      setAuthSubmitting(false)
+    }
+  }
+
+  async function logoutUser() {
+    await signOut(firebaseAuth)
+    setView('habits')
+    setAdminProfiles([])
+  }
+
+  function formatAdminDate(value: string | null) {
+    if (!value) return 'Jamais'
+    return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  }
+
+  async function signInWithGoogle() {
+    setAuthSubmitting(true)
+    setAuthError('')
+
+    try {
+      await signInWithPopup(firebaseAuth, googleAuthProvider)
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('auth/unauthorized-domain')) {
+        setAuthError('Le domaine n est pas encore totalement autorise par Firebase. Reessaie dans quelques minutes.')
+      } else if (
+        error instanceof Error &&
+        (error.message.includes('auth/popup-closed-by-user') || error.message.includes('auth/cancelled-popup-request'))
+      ) {
+        setAuthError('Connexion Google annulee.')
+      } else {
+        setAuthError(error instanceof Error ? error.message : 'Connexion Google impossible.')
+      }
+    } finally {
+      setAuthSubmitting(false)
+    }
+  }
+
+  function renderAuthScreen() {
+    return (
+      <main className="main minimal-main auth-main">
+        <section className="panel surface-panel auth-panel">
+          <div className="auth-copy">
+            <span className="auth-kicker">Suivi personnel</span>
+            <strong>{authMode === 'login' ? 'Retrouve ton tableau de bord.' : 'Cree ton espace de suivi.'}</strong>
+            <p className="compact-description auth-description">
+              Habitudes, performances et objectifs au meme endroit. Connexion simple, synchro par compte et acces admin separe.
+            </p>
+          </div>
+          <form className="form-grid compact-form" onSubmit={submitAuth}>
+            <div className="field auth-field">
+              <span>Adresse email</span>
+              <input type="email" required value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="ton@email.com" />
+            </div>
+            <div className="field auth-field">
+              <span>Mot de passe</span>
+              <input type="password" required minLength={6} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Minimum 6 caracteres" />
+            </div>
+            {authError && <p className="muted-inline">{authError}</p>}
+            <button type="submit" disabled={authSubmitting}>
+              {authSubmitting ? 'Chargement...' : authMode === 'login' ? 'Se connecter' : 'Creer le compte'}
+            </button>
+            <button type="button" className="auth-google-button" onClick={() => void signInWithGoogle()} disabled={authSubmitting}>
+              <span className="auth-google-mark" aria-hidden="true">G</span>
+              <span>Continuer avec Google</span>
+            </button>
+            <div className="auth-divider" aria-hidden="true">
+              <span>ou</span>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+              {authMode === 'login' ? 'Creer un compte avec email' : 'J ai deja un compte'}
+            </button>
+          </form>
+        </section>
+      </main>
+    )
+  }
+
+  function renderAdminView() {
+    return (
+      <section className="panel surface-panel">
+        <div className="surface-head">
+          <strong>Admin</strong>
+          <span className="muted-inline">{adminProfiles.length} compte(s)</span>
+        </div>
+        <div className="goal-list">
+          {adminLoading && <article className="empty-panel"><p>Chargement des comptes...</p></article>}
+          {!adminLoading && adminProfiles.length === 0 && (
+            <article className="empty-panel">
+              <h3>Aucun compte</h3>
+              <p>Les utilisateurs apparaitront ici apres leur premiere connexion.</p>
+            </article>
+          )}
+          {adminProfiles.map((profile) => (
+            <article key={profile.id} className="goal-card">
+              <div className="goal-head">
+                <div>
+                  <strong>{profile.email || profile.id}</strong>
+                  <div className="tracker-meta">
+                    <span className="ghost-pill">UID {profile.id}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="muted-inline">Derniere synchronisation : {formatAdminDate(profile.updatedAt)}</p>
+              <p className="muted-inline">Creation : {formatAdminDate(profile.createdAt)}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
   function renderChecklistDraftEditor(
     scopeKey: string,
     items: string[],
@@ -1622,6 +1907,22 @@ function App() {
   }
 
 
+  if (!authReady) {
+    return (
+      <div className="shell minimal-shell">
+        <main className="main minimal-main auth-main">
+          <section className="panel surface-panel auth-panel">
+            <p>Connexion au compte...</p>
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return <div className="shell minimal-shell">{renderAuthScreen()}</div>
+  }
+
   return (
     <div className="shell minimal-shell">
       <button type="button" className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} aria-label="Fermer le menu" onClick={() => setSidebarOpen(false)} />
@@ -1636,7 +1937,12 @@ function App() {
           <button type="button" className={`nav-link ${view === 'habits' ? 'active' : ''}`} onClick={() => { setView('habits'); setSidebarOpen(false) }}>Habitudes</button>
           <button type="button" className={`nav-link ${view === 'performances' ? 'active' : ''}`} onClick={() => { setView('performances'); setSidebarOpen(false) }}>Performances</button>
           <button type="button" className={`nav-link ${view === 'goals' ? 'active' : ''}`} onClick={() => { setView('goals'); setSidebarOpen(false) }}>Objectifs</button>
+          {isAdmin && <button type="button" className={`nav-link ${view === 'admin' ? 'active' : ''}`} onClick={() => { setView('admin'); setSidebarOpen(false) }}>Admin</button>}
         </nav>
+        <div className="sidebar-foot">
+          <span className="muted-inline">{currentUser.email}</span>
+          <button type="button" className="ghost-button" onClick={logoutUser}>Se deconnecter</button>
+        </div>
       </aside>
 
       <main className="main minimal-main">
@@ -1792,6 +2098,8 @@ function App() {
             </div>
           </section>
         )}
+
+        {view === 'admin' && isAdmin && renderAdminView()}
 
         {view === 'goals' && (
           <section className="panel surface-panel">
