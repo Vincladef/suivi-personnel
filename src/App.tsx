@@ -160,6 +160,7 @@ type TrackerEditorState = {
 type HistoryItem = {
   occurrenceId: string
   date: string
+  label?: string
   state: EntryState
 }
 
@@ -926,7 +927,7 @@ function HistoryCarousel({
             className={`history-chip state-${history.state} ${history.date === selectedDate ? 'active' : ''}`}
             onClick={() => onSelect(history.date)}
           >
-            <span>{formatHistoryDate(history.date)}</span>
+            <span>{history.label ?? formatHistoryDate(history.date)}</span>
           </button>
         ))}
       </div>
@@ -964,6 +965,7 @@ function App() {
   const [trackerEditor, setTrackerEditor] = useState<TrackerEditorState | null>(null)
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
+  const [trackerActionMenuId, setTrackerActionMenuId] = useState<string | null>(null)
   const [celebration, setCelebration] = useState<CelebrationState | null>(null)
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const checklistDragRef = useRef<{ scope: string; index: number } | null>(null)
@@ -1360,6 +1362,7 @@ function App() {
       .map((occurrence) => ({
         occurrenceId: occurrence.id,
         date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
+        label: module === 'performances' ? occurrence.label : undefined,
         state: occurrence.entries[itemId]?.state ?? 'unknown',
       }))
   }
@@ -1560,9 +1563,30 @@ function App() {
   }
 
   function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
+    setTrackerActionMenuId(null)
     setEditingTrackerId(item?.id ?? null)
     setTrackerDraft(item ? trackerDraftFromItem(item) : defaultTrackerDraft(module))
     setModalView(module)
+  }
+
+  function deleteTrackerItem(itemId: string) {
+    const item = state.trackerItems.find((candidate) => candidate.id === itemId)
+    if (!item) return
+
+    patchState({
+      trackerItems: state.trackerItems.filter((candidate) => candidate.id !== itemId),
+      occurrences: state.occurrences.map((occurrence) => {
+        if (occurrence.module !== item.module) return occurrence
+        const nextEntries = { ...occurrence.entries }
+        delete nextEntries[itemId]
+        return {
+          ...occurrence,
+          entries: nextEntries,
+        }
+      }),
+    })
+    setTrackerActionMenuId(null)
+    writeDebugLog('tracker-item-deleted', { itemId, module: item.module, title: item.title })
   }
 
   function openGoalModal() {
@@ -2008,14 +2032,22 @@ function App() {
                       </div>
                     </button>
                     <div className="tracker-card-actions">
-                      <button
-                        type="button"
-                        className="ghost-icon tracker-menu-button"
-                        aria-label={`Modifier ${item.title}`}
-                        onClick={() => openTrackerModal('habits', item)}
-                      >
-                        ⋮
-                      </button>
+                      <div className="tracker-menu-wrap">
+                        <button
+                          type="button"
+                          className="ghost-icon tracker-menu-button"
+                          aria-label={`Actions pour ${item.title}`}
+                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                        >
+                          ⋮
+                        </button>
+                        {trackerActionMenuId === item.id && (
+                          <div className="tracker-action-menu">
+                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
+                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -2084,14 +2116,22 @@ function App() {
                       </div>
                     </button>
                     <div className="tracker-card-actions">
-                      <button
-                        type="button"
-                        className="ghost-icon tracker-menu-button"
-                        aria-label={`Modifier ${item.title}`}
-                        onClick={() => openTrackerModal('performances', item)}
-                      >
-                        ⋮
-                      </button>
+                      <div className="tracker-menu-wrap">
+                        <button
+                          type="button"
+                          className="ghost-icon tracker-menu-button"
+                          aria-label={`Actions pour ${item.title}`}
+                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                        >
+                          ⋮
+                        </button>
+                        {trackerActionMenuId === item.id && (
+                          <div className="tracker-action-menu">
+                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
+                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
