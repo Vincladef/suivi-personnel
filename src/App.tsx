@@ -630,6 +630,20 @@ function listWeeksInMonth(date: string) {
   return weeks.slice(0, 4)
 }
 
+function goalDueDateForHorizon(horizon: GoalHorizon, anchorDate: string, weeks = listWeeksInMonth(anchorDate)) {
+  if (horizon === 'week') {
+    return endOfWeek(anchorDate)
+  }
+  if (horizon === 'month') {
+    return weeks[weeks.length - 1]?.end ?? endOfMonth(anchorDate)
+  }
+  if (horizon === 'year') {
+    const current = new Date(`${anchorDate}T12:00:00`)
+    return formatDateKey(new Date(current.getFullYear(), 11, 31, 12))
+  }
+  return anchorDate
+}
+
 function formatHistoryDate(date: string) {
   const parsedDate = new Date(`${date}T12:00:00`)
   if (Number.isNaN(parsedDate.getTime())) {
@@ -1113,6 +1127,8 @@ function App() {
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
   const sortedGoals = sortGoals(state.goals)
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
+  const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
+  const yearFinalDueDate = goalDueDateForHorizon('year', goalPeriodDate, monthWeeks)
   const currentMonthStart = startOfMonth(goalPeriodDate)
   const currentMonthEnd = endOfMonth(goalPeriodDate)
   const currentYear = new Date(`${goalPeriodDate}T12:00:00`).getFullYear()
@@ -1344,13 +1360,22 @@ function App() {
 
   function addGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const normalizedWeekDate = goalDraft.horizon === 'week' ? startOfWeek(goalDraft.dueDate) : null
+    const computedDueDate = goalDraft.horizon === 'week'
+      ? goalDueDateForHorizon('week', normalizedWeekDate ?? goalDraft.dueDate)
+      : goalDraft.horizon === 'month'
+        ? goalDueDateForHorizon('month', goalDraft.dueDate, listWeeksInMonth(goalDraft.dueDate))
+        : goalDraft.horizon === 'year'
+          ? goalDueDateForHorizon('year', goalDraft.dueDate)
+          : goalDraft.dueDate
+
     const goal: Goal = {
       id: crypto.randomUUID(),
       title: goalDraft.title,
       description: goalDraft.description,
       horizon: goalDraft.horizon,
-      dueDate: goalDraft.dueDate,
-      weekDate: goalDraft.horizon === 'week' ? startOfWeek(goalDraft.weekDate || goalDraft.dueDate) : null,
+      dueDate: computedDueDate,
+      weekDate: normalizedWeekDate,
       resultKind: goalDraft.resultKind,
       priority: goalDraft.priority,
       reminder: goalDraft.reminder,
@@ -1629,11 +1654,19 @@ function App() {
 
   function openGoalModal(weekDate?: string | null) {
     const baseDate = weekDate ?? goalPeriodDate
+    const horizon = weekDate ? 'week' : goalViewMode
+    const normalizedWeekDate = weekDate ? startOfWeek(weekDate) : startOfWeek(baseDate)
+    const dueDate = horizon === 'week'
+      ? goalDueDateForHorizon('week', normalizedWeekDate)
+      : horizon === 'month'
+        ? monthFinalDueDate
+        : yearFinalDueDate
+
     setGoalDraft({
       ...defaultGoalDraft(),
-      horizon: weekDate ? 'week' : goalViewMode,
-      dueDate: baseDate,
-      weekDate: weekDate ?? startOfWeek(baseDate),
+      horizon,
+      dueDate,
+      weekDate: normalizedWeekDate,
     })
     setModalView('goals')
   }
@@ -2357,16 +2390,28 @@ function App() {
               {modalView === 'goals' ? (
                 <form className="form-grid compact-form" onSubmit={addGoal}>
                   <input required value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} placeholder="Titre" />
-                  <select value={goalDraft.horizon} onChange={(event) => setGoalDraft({ ...goalDraft, horizon: event.target.value as GoalHorizon })}>
+                  <select value={goalDraft.horizon} onChange={(event) => {
+                    const nextHorizon = event.target.value as GoalHorizon
+                    const anchorDate = nextHorizon === 'week' ? goalDraft.weekDate : goalPeriodDate
+                    setGoalDraft({
+                      ...goalDraft,
+                      horizon: nextHorizon,
+                      dueDate: goalDueDateForHorizon(nextHorizon, anchorDate, monthWeeks),
+                    })
+                  }}>
                     <option value="week">Objectif de semaine</option>
                     <option value="month">Objectif du mois</option>
                     <option value="year">Objectif de l annee</option>
                   </select>
-                  {goalDraft.horizon === 'week' ? (
-                    <input type="date" value={goalDraft.weekDate} onChange={(event) => setGoalDraft({ ...goalDraft, weekDate: event.target.value, dueDate: event.target.value })} />
-                  ) : (
-                    <input type="date" value={goalDraft.dueDate} onChange={(event) => setGoalDraft({ ...goalDraft, dueDate: event.target.value })} />
-                  )}
+                  <input
+                    type="date"
+                    value={goalDraft.dueDate}
+                    onChange={(event) => setGoalDraft({
+                      ...goalDraft,
+                      dueDate: event.target.value,
+                      weekDate: goalDraft.horizon === 'week' ? startOfWeek(event.target.value) : goalDraft.weekDate,
+                    })}
+                  />
                   <select value={goalDraft.resultKind} onChange={(event) => setGoalDraft({ ...goalDraft, resultKind: event.target.value as InputKind })}>
                     <option value="tristate">Oui / Non</option>
                     <option value="score">Echelle qualitative</option>
