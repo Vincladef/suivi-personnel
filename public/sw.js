@@ -1,4 +1,4 @@
-const CACHE_NAME = 'suivi-personnel-v1'
+const CACHE_NAME = 'suivi-personnel-v2'
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
