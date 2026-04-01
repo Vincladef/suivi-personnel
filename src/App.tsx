@@ -1362,7 +1362,9 @@ function App() {
       .map((occurrence) => ({
         occurrenceId: occurrence.id,
         date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
-        label: module === 'performances' ? occurrence.label : undefined,
+        label: module === 'performances'
+          ? new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(occurrence.createdAt))
+          : undefined,
         state: occurrence.entries[itemId]?.state ?? 'unknown',
       }))
   }
