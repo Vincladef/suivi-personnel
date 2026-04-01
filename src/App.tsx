@@ -179,12 +179,24 @@ type GoalEditorState = {
 
 type InstallState = 'hidden' | 'available' | 'manual' | 'installed'
 
+function currentNotificationSettingsFallback(): NotificationSettings {
+  return {
+    enabled: false,
+    dailyReminderEnabled: true,
+    dailyReminderTime: '07:00',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    quietDaysAfterTracking: 1,
+    inactiveReminderEnabled: true,
+    inactiveDaysThreshold: 3,
+  }
+}
+
 type NotificationSettings = {
   enabled: boolean
   dailyReminderEnabled: boolean
   dailyReminderTime: string
   timezone: string
-  skipIfTrackedToday: boolean
+  quietDaysAfterTracking: number
   inactiveReminderEnabled: boolean
   inactiveDaysThreshold: number
 }
@@ -1057,15 +1069,7 @@ function App() {
   const [goalPeriodDate, setGoalPeriodDate] = useState(startOfMonth(today))
   const [installState, setInstallState] = useState<InstallState>('hidden')
   const [installHintOpen, setInstallHintOpen] = useState(false)
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    enabled: false,
-    dailyReminderEnabled: true,
-    dailyReminderTime: '07:00',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    skipIfTrackedToday: true,
-    inactiveReminderEnabled: true,
-    inactiveDaysThreshold: 3,
-  })
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(currentNotificationSettingsFallback)
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false)
   const [notificationPermissionState, setNotificationPermissionState] = useState<'default' | 'granted' | 'denied'>(() => {
     if (typeof Notification === 'undefined') return 'default'
@@ -1107,7 +1111,8 @@ function App() {
         if (profileSnapshot.exists()) {
           const profile = profileSnapshot.data() as { notificationSettings?: Partial<NotificationSettings> }
           if (profile.notificationSettings) {
-            setNotificationSettings((current) => ({ ...current, ...profile.notificationSettings }))
+            const nextSettings = { ...currentNotificationSettingsFallback(), ...profile.notificationSettings }
+            setNotificationSettings(nextSettings)
           }
         }
 
@@ -2505,14 +2510,21 @@ function App() {
                     disabled={!notificationSettings.enabled || notificationSaving}
                   />
                 </label>
-                <label className="settings-toggle">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.skipIfTrackedToday}
-                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, skipIfTrackedToday: event.target.checked })}
+                <label className="settings-field">
+                  <span>Ne pas notifier si j ai repondu depuis</span>
+                  <select
+                    value={notificationSettings.quietDaysAfterTracking}
+                    onChange={(event) => void saveNotificationSettings({ ...notificationSettings, quietDaysAfterTracking: Number(event.target.value) })}
                     disabled={!notificationSettings.enabled || notificationSaving}
-                  />
-                  <span>Ne pas notifier si j ai deja repondu aujourd hui</span>
+                  >
+                    <option value="0">Aucun delai</option>
+                    <option value="1">1 jour</option>
+                    <option value="2">2 jours</option>
+                    <option value="3">3 jours</option>
+                    <option value="4">4 jours</option>
+                    <option value="5">5 jours</option>
+                    <option value="7">7 jours</option>
+                  </select>
                 </label>
                 <label className="settings-toggle">
                   <input

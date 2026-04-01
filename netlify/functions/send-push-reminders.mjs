@@ -219,7 +219,9 @@ export default async function handler() {
       const inactiveDays = lastTrackingDate ? daysBetween(lastTrackingDate, localDate) : 999
 
       let mode = null
-      if (withinWindow && (!settings.skipIfTrackedToday || !trackedToday) && (habitCount > 0 || goalCount > 0)) {
+      const quietDays = Number(settings.quietDaysAfterTracking ?? 1)
+      const recentlyTracked = lastTrackingDate ? daysBetween(lastTrackingDate, localDate) < quietDays : false
+      if (withinWindow && !recentlyTracked && (habitCount > 0 || goalCount > 0)) {
         mode = 'daily'
       }
       if (!mode && settings.inactiveReminderEnabled && inactiveDays >= Number(settings.inactiveDaysThreshold || 3) && meta.lastInactiveReminderDate !== localDate) {

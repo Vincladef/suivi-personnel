@@ -107,7 +107,7 @@ export async function handler(event) {
         dailyReminderEnabled: firestoreBool(Boolean(settings.dailyReminderEnabled)),
         dailyReminderTime: firestoreString(String(settings.dailyReminderTime || '07:00')),
         timezone: firestoreString(String(settings.timezone || 'UTC')),
-        skipIfTrackedToday: firestoreBool(Boolean(settings.skipIfTrackedToday)),
+        quietDaysAfterTracking: { integerValue: String(Math.max(0, Number(settings.quietDaysAfterTracking || 1))) },
         inactiveReminderEnabled: firestoreBool(Boolean(settings.inactiveReminderEnabled)),
         inactiveDaysThreshold: { integerValue: String(Math.max(1, Number(settings.inactiveDaysThreshold || 3))) },
       }),
