@@ -1,0 +1,21 @@
+{
+  "name": "Suivi personnel",
+  "short_name": "Suivi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef2f6",
+  "theme_color": "#28407d",
+  "description": "Application web de suivi personnel pour habitudes, performances et objectifs.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
