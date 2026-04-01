@@ -426,6 +426,24 @@ function deriveLeafState(
   return entry.note.trim() ? 'success' : 'unknown'
 }
 
+
+function isFullSuccess(inputKind: InputKind, target: TargetConfig | null | undefined, entry: TrackerEntry | TrackerSubEntry | { state: EntryState; score: number | null; checklist: ChecklistStatus[]; numericValue: number | null; note: string }): boolean {
+  if (entry.state === 'rest' || entry.state === 'inactive') return false
+  if (inputKind === 'tristate') return entry.state === 'success'
+  if (inputKind === 'score') return entry.score != null && entry.score >= 4
+  if (inputKind === 'checklist') {
+    return entry.checklist.length > 0 && entry.checklist.every((value) => value === 'done' || value === 'excused')
+  }
+  if (inputKind === 'numeric') {
+    if (!target || entry.numericValue == null) return false
+    const goal = target.value
+    if (target.mode === 'atLeast') return entry.numericValue >= goal
+    if (target.mode === 'atMost') return entry.numericValue <= goal
+    return entry.numericValue === goal
+  }
+  return entry.note.trim().length > 0
+}
+
 function deriveState(item: TrackerItem, entry: TrackerEntry): EntryState {
   return deriveLeafState(item.inputKind, item.target, entry)
 }
@@ -648,19 +666,29 @@ function buildUpdatedOccurrencesAfterEntryPatch(
   }
 }
 
-function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[]) {
+function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[]) {
+  const item = trackerItems.find((candidate) => candidate.id === itemId)
+  if (!item) return null
   return occurrences
     .filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard' && occurrence.date)
     .sort((left, right) => right.key - left.key)
-    .find((occurrence) => occurrence.entries[itemId]?.state === 'success')
+    .find((occurrence) => {
+      const entry = occurrence.entries[itemId]
+      return entry ? isFullSuccess(item.inputKind, item.target, entry) : false
+    })
     ?.date ?? null
 }
 
-function latestSuccessIteration(itemId: string, occurrences: TrackerOccurrence[]) {
+function latestSuccessIteration(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[]) {
+  const item = trackerItems.find((candidate) => candidate.id === itemId)
+  if (!item) return null
   return occurrences
     .filter((occurrence) => occurrence.module === 'performances' && occurrence.kind === 'standard')
     .sort((left, right) => right.key - left.key)
-    .find((occurrence) => occurrence.entries[itemId]?.state === 'success')
+    .find((occurrence) => {
+      const entry = occurrence.entries[itemId]
+      return entry ? isFullSuccess(item.inputKind, item.target, entry) : false
+    })
     ?.key ?? null
 }
 
@@ -806,7 +834,7 @@ function createOccurrence(
         .map((item) => {
           const base = emptyEntry(item)
           if (kind === 'review') return [item.id, base]
-          const lastSuccess = latestSuccessDate(item.id, occurrences)
+          const lastSuccess = latestSuccessDate(item.id, occurrences, items)
           const inRest = lastSuccess
             ? item.restAfterSuccess > 0 && daysBetween(lastSuccess, occurrenceDate) > 0 && daysBetween(lastSuccess, occurrenceDate) <= item.restAfterSuccess
             : false
@@ -837,7 +865,7 @@ function createOccurrence(
       .map((item) => {
         const base = emptyEntry(item)
         if (kind === 'review') return [item.id, base]
-        const lastSuccess = latestSuccessIteration(item.id, occurrences)
+        const lastSuccess = latestSuccessIteration(item.id, occurrences, items)
         const inRest = lastSuccess != null && item.restAfterSuccess > 0 && key - lastSuccess > 0 && key - lastSuccess <= item.restAfterSuccess
         if (inRest) return [item.id, { ...base, state: 'rest' as EntryState }]
         return [item.id, base]
@@ -1040,7 +1068,7 @@ function buildHabitOccurrenceForDate(
       .filter((item) => item.module === 'habits')
       .map((item) => {
         const base = emptyEntry(item)
-        const lastSuccess = latestSuccessDate(item.id, occurrences)
+        const lastSuccess = latestSuccessDate(item.id, occurrences, items)
         const inRest = lastSuccess
           ? item.restAfterSuccess > 0 && daysBetween(lastSuccess, date) > 0 && daysBetween(lastSuccess, date) <= item.restAfterSuccess
           : false
