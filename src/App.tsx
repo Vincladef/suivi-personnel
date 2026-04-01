@@ -1422,8 +1422,11 @@ function App() {
   const sortedGoals = sortGoals(state.goals)
   const [draggedTrackerId, setDraggedTrackerId] = useState<string | null>(null)
   const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null)
+  const [dragOverTrackerId, setDragOverTrackerId] = useState<string | null>(null)
+  const [dragOverGoalId, setDragOverGoalId] = useState<string | null>(null)
 
   function reorderTrackersWithinCategory(module: ModuleKey, category: string, draggedId: string, targetId: string) {
+    if (draggedId === targetId) return
     const categoryKey = category.trim() || 'Autres'
     const sameBucket = sortTrackerItems(state.trackerItems.filter((item) => item.module === module && (((item.category || '').trim() || 'Autres') === categoryKey)))
     const reorderedBucket = resequenceTrackerItems(moveItem(sameBucket, draggedId, targetId))
@@ -1432,6 +1435,7 @@ function App() {
   }
 
   function reorderGoalsWithinList(goalIds: string[], draggedId: string, targetId: string) {
+    if (draggedId === targetId) return
     const bucket = goalIds.map((goalId) => state.goals.find((goal) => goal.id === goalId)).filter(Boolean)
     const reorderedBucket = resequenceGoals(moveItem(bucket as Goal[], draggedId, targetId))
     const reorderedById = Object.fromEntries(reorderedBucket.map((goal) => [goal.id, goal.order ?? 0]))
@@ -2955,7 +2959,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
                         return (
-                          <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedTrackerId) reorderTrackersWithinCategory('habits', category, draggedTrackerId, item.id); setDraggedTrackerId(null) }} className={`tracker-card is-draggable ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                          <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragEnd={() => { setDraggedTrackerId(null); setDragOverTrackerId(null) }} onDragOver={(event) => { event.preventDefault(); if (draggedTrackerId && draggedTrackerId !== item.id && dragOverTrackerId !== item.id) { reorderTrackersWithinCategory('habits', category, draggedTrackerId, item.id); setDraggedTrackerId(item.id); setDragOverTrackerId(item.id) } }} className={`tracker-card is-draggable ${draggedTrackerId === item.id ? 'is-dragging' : ''} ${dragOverTrackerId === item.id ? 'is-drop-target' : ''} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
                               <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                                 {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -3057,7 +3061,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 const performanceToneState = displayToneState(item.inputKind, performanceEntry, item.target)
                 return (
-                <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedTrackerId) reorderTrackersWithinCategory('performances', item.category || '', draggedTrackerId, item.id); setDraggedTrackerId(null) }} className={`tracker-card is-draggable ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                <article key={item.id} draggable onDragStart={() => setDraggedTrackerId(item.id)} onDragEnd={() => { setDraggedTrackerId(null); setDragOverTrackerId(null) }} onDragOver={(event) => { event.preventDefault(); if (draggedTrackerId && draggedTrackerId !== item.id && dragOverTrackerId !== item.id) { reorderTrackersWithinCategory('performances', item.category || '', draggedTrackerId, item.id); setDraggedTrackerId(item.id); setDragOverTrackerId(item.id) } }} className={`tracker-card is-draggable ${draggedTrackerId === item.id ? 'is-dragging' : ''} ${dragOverTrackerId === item.id ? 'is-drop-target' : ''} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
                     <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                       {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -3163,7 +3167,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 {monthLevelGoals.length > 0 && (
                   <div className="goal-list">
                     {monthLevelGoals.map((goal) => (
-                      <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                      <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragEnd={() => { setDraggedGoalId(null); setDragOverGoalId(null) }} onDragOver={(event) => { event.preventDefault(); if (draggedGoalId && draggedGoalId !== goal.id && dragOverGoalId !== goal.id) { reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(goal.id); setDragOverGoalId(goal.id) } }} className={`goal-card is-draggable ${draggedGoalId === goal.id ? 'is-dragging' : ''} ${dragOverGoalId === goal.id ? 'is-drop-target' : ''} horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                         <div className="goal-head">
                           <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                             <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3211,7 +3215,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         {weekGoals.length > 0 && (
                           <div className="goal-list compact-goal-list">
                             {weekGoals.map((goal) => (
-                              <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(weekGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                              <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragEnd={() => { setDraggedGoalId(null); setDragOverGoalId(null) }} onDragOver={(event) => { event.preventDefault(); if (draggedGoalId && draggedGoalId !== goal.id && dragOverGoalId !== goal.id) { reorderGoalsWithinList(weekGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(goal.id); setDragOverGoalId(goal.id) } }} className={`goal-card is-draggable ${draggedGoalId === goal.id ? 'is-dragging' : ''} ${dragOverGoalId === goal.id ? 'is-drop-target' : ''} horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                                 <div className="goal-head compact-goal-head">
                                   <button type="button" className="tracker-open goal-open" onClick={(event) => { event.stopPropagation(); openGoalEditor(goal.id) }} aria-label={`Renseigner ${goal.title}`}>
                                     <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3242,7 +3246,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
             ) : (
               <div className="goal-year-layout minimal-goal-layout">
                 {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
-                  <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedGoalId) reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(null) }} className={`goal-card is-draggable horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
+                  <article key={goal.id} draggable onDragStart={() => setDraggedGoalId(goal.id)} onDragEnd={() => { setDraggedGoalId(null); setDragOverGoalId(null) }} onDragOver={(event) => { event.preventDefault(); if (draggedGoalId && draggedGoalId !== goal.id && dragOverGoalId !== goal.id) { reorderGoalsWithinList(monthLevelGoals.map((entry) => entry.id), draggedGoalId, goal.id); setDraggedGoalId(goal.id); setDragOverGoalId(goal.id) } }} className={`goal-card is-draggable ${draggedGoalId === goal.id ? 'is-dragging' : ''} ${dragOverGoalId === goal.id ? 'is-drop-target' : ''} horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                     <div className="goal-head">
                       <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                         <div className="tracker-open-copy compact-tracker-open-copy">

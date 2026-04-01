@@ -2280,3 +2280,14 @@ small,
 .is-draggable:active {
   cursor: grabbing;
 }
+
+
+.is-dragging {
+  opacity: 0.58;
+  transform: scale(0.985);
+}
+
+.is-drop-target {
+  outline: 1px dashed rgba(40, 64, 125, 0.26);
+  outline-offset: 3px;
+}
