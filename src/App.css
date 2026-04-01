@@ -2101,3 +2101,79 @@ small,
   font-weight: 500;
   letter-spacing: 0.01em;
 }
+
+
+.pill.state-tone-failed-0,
+.tracker-title.state-tone-failed-0,
+.goal-card.tone-failed-0 strong {
+  color: #9f4037;
+}
+
+.pill.state-tone-failed-0 {
+  background: #f5d6d1;
+}
+
+.pill.state-tone-failed-1,
+.tracker-title.state-tone-failed-1,
+.goal-card.tone-failed-1 strong {
+  color: #a86a4c;
+}
+
+.pill.state-tone-failed-1 {
+  background: #efddcf;
+}
+
+.pill.state-tone-neutral-2,
+.tracker-title.state-tone-neutral-2,
+.goal-card.tone-neutral-2 strong {
+  color: #8d7829;
+}
+
+.pill.state-tone-neutral-2 {
+  background: #f3ecd1;
+}
+
+.pill.state-tone-success-3,
+.tracker-title.state-tone-success-3,
+.goal-card.tone-success-3 strong {
+  color: #6f7440;
+}
+
+.pill.state-tone-success-3 {
+  background: #e7e6d4;
+}
+
+.pill.state-tone-success-4,
+.tracker-title.state-tone-success-4,
+.goal-card.tone-success-4 strong {
+  color: #596338;
+}
+
+.pill.state-tone-success-4 {
+  background: #dde3cf;
+}
+
+.goal-card.tone-failed-0 {
+  border-color: rgba(159, 64, 55, 0.18);
+  background: linear-gradient(180deg, rgba(247, 226, 222, 0.98), rgba(252, 243, 240, 0.92));
+}
+
+.goal-card.tone-failed-1 {
+  border-color: rgba(168, 106, 76, 0.18);
+  background: linear-gradient(180deg, rgba(243, 231, 222, 0.98), rgba(250, 244, 238, 0.92));
+}
+
+.goal-card.tone-neutral-2 {
+  border-color: rgba(154, 138, 78, 0.18);
+  background: linear-gradient(180deg, rgba(247, 242, 223, 0.98), rgba(252, 248, 236, 0.92));
+}
+
+.goal-card.tone-success-3 {
+  border-color: rgba(120, 126, 78, 0.18);
+  background: linear-gradient(180deg, rgba(236, 239, 225, 0.98), rgba(245, 247, 238, 0.92));
+}
+
+.goal-card.tone-success-4 {
+  border-color: rgba(98, 108, 62, 0.2);
+  background: linear-gradient(180deg, rgba(228, 234, 214, 0.98), rgba(240, 244, 231, 0.92));
+}

@@ -447,6 +447,26 @@ function stateClassName(state: EntryState) {
   return state === 'failed' ? 'state-failed' : `state-${state}`
 }
 
+
+function scoreTone(score: number | null | undefined): 'failed-0' | 'failed-1' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
+  if (score == null) return 'unknown'
+  if (score <= 0) return 'failed-0'
+  if (score === 1) return 'failed-1'
+  if (score === 2) return 'neutral-2'
+  if (score === 3) return 'success-3'
+  return 'success-4'
+}
+
+function trackerToneClass(item: TrackerItem, entry: TrackerEntry) {
+  if (item.inputKind === 'score') return `state-tone-${scoreTone(entry.score)}`
+  return `state-tone-${entry.state === 'failed' ? 'failed-0' : entry.state === 'excused' ? 'neutral-2' : entry.state === 'success' ? 'success-4' : 'unknown'}`
+}
+
+function goalToneClass(goal: Goal) {
+  if (goal.resultKind === 'score') return `tone-${scoreTone(goal.score)}`
+  return `tone-${goal.status === 'failed' ? 'failed-0' : goal.status === 'excused' ? 'neutral-2' : goal.status === 'success' ? 'success-4' : 'unknown'}`
+}
+
 function entryLabelForInput(inputKind: InputKind, state: EntryState, score?: number | null) {
   if (inputKind === 'tristate') {
     return { success: 'Oui', failed: 'Non', unknown: '', rest: 'Repos', inactive: 'Non concerne', excused: 'Neutre' }[state]
@@ -2867,10 +2887,10 @@ function App() {
                       aria-label={`Renseigner ${item.title}`}
                     >
                       <div className="tracker-open-copy">
-                        <strong className={`tracker-title performance-title state-text-${performanceEntry.state}`}>{item.title}</strong>
+                        <strong className={`tracker-title performance-title state-text-${performanceEntry.state} ${trackerToneClass(item, performanceEntry)}`}>{item.title}</strong>
                         {entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score) && (
                           <div className="tracker-meta">
-                            <span className={`pill ${stateClassName(performanceEntry.state)}`}>{entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score)}</span>
+                            <span className={`pill ${stateClassName(performanceEntry.state)} ${trackerToneClass(item, performanceEntry)}`}>{entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score)}</span>
                           </div>
                         )}
                       </div>
@@ -2957,7 +2977,7 @@ function App() {
                 {monthLevelGoals.length > 0 && (
                   <div className="goal-list">
                     {monthLevelGoals.map((goal) => (
-                      <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
+                      <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                         <div className="goal-head">
                           <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                             <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3005,7 +3025,7 @@ function App() {
                         {weekGoals.length > 0 && (
                           <div className="goal-list compact-goal-list">
                             {weekGoals.map((goal) => (
-                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)}`}>
+                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                                 <div className="goal-head compact-goal-head">
                                   <button type="button" className="tracker-open goal-open" onClick={(event) => { event.stopPropagation(); openGoalEditor(goal.id) }} aria-label={`Renseigner ${goal.title}`}>
                                     <div className="tracker-open-copy compact-tracker-open-copy">
@@ -3036,7 +3056,7 @@ function App() {
             ) : (
               <div className="goal-year-layout minimal-goal-layout">
                 {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
-                  <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
+                  <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)} ${goalToneClass(goal)}`}>
                     <div className="goal-head">
                       <button type="button" className="tracker-open goal-open" onClick={() => openGoalEditor(goal.id)} aria-label={`Renseigner ${goal.title}`}>
                         <div className="tracker-open-copy compact-tracker-open-copy">
