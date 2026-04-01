@@ -475,6 +475,24 @@ function displayToneState(inputKind: InputKind, entry: { state: EntryState; scor
 
 
 
+
+function numericTone(target: TargetConfig | null, value: number | null): 'failed-0' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
+  if (!target || value == null) return 'unknown'
+  const goal = target.value
+  if (goal === 0) return value === 0 ? 'success-4' : 'failed-0'
+
+  let ratio = 0
+  if (target.mode === 'atLeast') ratio = value / goal
+  else if (target.mode === 'atMost') ratio = goal / (value || Number.EPSILON)
+  else ratio = value === goal ? 1 : 0
+
+  if (!Number.isFinite(ratio)) ratio = 0
+  if (ratio >= 0.9) return 'success-4'
+  if (ratio >= 0.75) return 'success-3'
+  if (ratio >= 0.5) return 'neutral-2'
+  return 'failed-0'
+}
+
 function checklistTone(checklist: ChecklistStatus[]): 'failed-0' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
   if (!checklist.length || checklist.every((value) => value === 'unknown')) return 'unknown'
   const completedCount = checklist.filter((value) => value === 'done' || value === 'excused').length
@@ -497,12 +515,14 @@ function scoreTone(score: number | null | undefined): 'failed-0' | 'failed-1' | 
 function trackerToneClass(item: TrackerItem, entry: TrackerEntry) {
   if (item.inputKind === 'score') return `state-tone-${scoreTone(entry.score)}`
   if (item.inputKind === 'checklist') return `state-tone-${checklistTone(entry.checklist)}`
+  if (item.inputKind === 'numeric') return `state-tone-${numericTone(item.target, entry.numericValue)}`
   return `state-tone-${entry.state === 'failed' ? 'failed-0' : entry.state === 'excused' ? 'neutral-2' : entry.state === 'success' ? 'success-4' : 'unknown'}`
 }
 
 function goalToneClass(goal: Goal) {
   if (goal.resultKind === 'score') return `tone-${scoreTone(goal.score)}`
   if (goal.resultKind === 'checklist') return `tone-${checklistTone(goal.checklist)}`
+  if (goal.resultKind === 'numeric') return `tone-${numericTone(goal.target, goal.numericValue)}`
   return `tone-${goal.status === 'failed' ? 'failed-0' : goal.status === 'excused' ? 'neutral-2' : goal.status === 'success' ? 'success-4' : 'unknown'}`
 }
 
