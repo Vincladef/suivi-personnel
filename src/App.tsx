@@ -2571,7 +2571,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
             <span className="auth-kicker">Suivi personnel</span>
             <strong>{authMode === 'login' ? 'Retrouve ton tableau de bord.' : 'Cree ton espace de suivi.'}</strong>
             <p className="compact-description auth-description">
-              Habitudes, performances et objectifs au meme endroit. Connexion simple, synchro par compte et acces admin separe.
+              Habitudes, performances et objectifs au même endroit.
             </p>
           </div>
           <form className="form-grid compact-form" onSubmit={submitAuth}>
