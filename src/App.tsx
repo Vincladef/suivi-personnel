@@ -556,9 +556,9 @@ function formatHistoryDate(date: string) {
   if (Number.isNaN(parsedDate.getTime())) {
     return date
   }
-  return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-    .format(parsedDate)
-    .replace('.', '')
+  const dayMonth = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(parsedDate)
+  const weekday = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(parsedDate).replace('.', '').toUpperCase()
+  return `${dayMonth}\n${weekday}`
 }
 
 function createOccurrence(
@@ -874,73 +874,28 @@ function HistoryCarousel({
   selectedDate: string
   onSelect: (date: string) => void
 }) {
-  const stripRef = useRef<HTMLDivElement | null>(null)
-  const [canScrollPrevious, setCanScrollPrevious] = useState(false)
-  const [canScrollNext, setCanScrollNext] = useState(false)
-
-  useEffect(() => {
-    const node = stripRef.current
-    if (!node) return
-
-    const updateButtons = () => {
-      const maxScroll = Math.max(node.scrollWidth - node.clientWidth, 0)
-      setCanScrollPrevious(node.scrollLeft > 4)
-      setCanScrollNext(maxScroll - node.scrollLeft > 4)
-    }
-
-    updateButtons()
-    node.addEventListener('scroll', updateButtons)
-    window.addEventListener('resize', updateButtons)
-
-    return () => {
-      node.removeEventListener('scroll', updateButtons)
-      window.removeEventListener('resize', updateButtons)
-    }
-  }, [items])
-
-  function scroll(direction: 'previous' | 'next') {
-    stripRef.current?.scrollBy({ left: direction === 'next' ? 188 : -188, behavior: 'smooth' })
-  }
-
   if (items.length === 0) {
     return <span className="muted-inline">Pas encore d historique.</span>
   }
 
-
   return (
-    <div className="history-carousel">
-      <button
-        type="button"
-        className={`history-nav history-nav-previous ${canScrollPrevious ? '' : 'is-hidden'}`}
-        aria-label="Historique precedent"
-        aria-hidden={!canScrollPrevious}
-        tabIndex={canScrollPrevious ? 0 : -1}
-        onClick={() => scroll('previous')}
-      >
-        ‹
-      </button>
-      <div className="history-strip" ref={stripRef}>
-        {items.map((history) => (
+    <div className="history-strip compact-history-strip">
+      {items.map((history) => {
+        const label = history.label ?? formatHistoryDate(history.date)
+        const [dayMonth = label, weekday = ''] = label.split('\n')
+        return (
           <button
             key={history.occurrenceId}
             type="button"
-            className={`history-chip state-${history.state} ${history.date === selectedDate ? 'active' : ''}`}
+            className={`history-compact-item state-${history.state} ${history.date === selectedDate ? 'active' : ''}`}
             onClick={() => onSelect(history.date)}
           >
-            <span>{history.label ?? formatHistoryDate(history.date)}</span>
+            <span className="history-status-dot" aria-hidden="true" />
+            <span className="history-compact-date">{dayMonth}</span>
+            <span className="history-compact-day">{weekday}</span>
           </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        className={`history-nav history-nav-next ${canScrollNext ? '' : 'is-hidden'}`}
-        aria-label="Historique suivant"
-        aria-hidden={!canScrollNext}
-        tabIndex={canScrollNext ? 0 : -1}
-        onClick={() => scroll('next')}
-      >
-        ›
-      </button>
+        )
+      })}
     </div>
   )
 }
@@ -1363,7 +1318,7 @@ function App() {
         occurrenceId: occurrence.id,
         date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
         label: module === 'performances'
-          ? new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(occurrence.createdAt))
+          ? `${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(occurrence.createdAt))}\n${new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(new Date(occurrence.createdAt)).replace('.', '').toUpperCase()}`
           : undefined,
         state: occurrence.entries[itemId]?.state ?? 'unknown',
       }))
@@ -2055,7 +2010,6 @@ function App() {
 
 
                   <div className="history-row">
-                    <span className="history-label">Historique</span>
                     <HistoryCarousel
                       items={trackerHistory(item.id, 'habits')}
                       selectedDate={selectedHabitDate}
@@ -2139,7 +2093,6 @@ function App() {
                   {item.description && <p className="compact-description">{item.description}</p>}
 
                   <div className="history-row">
-                    <span className="history-label">Historique</span>
                     <HistoryCarousel
                       items={trackerHistory(item.id, 'performances')}
                       selectedDate={resolvedPerformanceOccurrence.id}
