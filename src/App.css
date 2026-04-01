@@ -2013,3 +2013,54 @@ small,
   min-height: 180px;
   resize: vertical;
 }
+
+
+.period-note-controls {
+  gap: 0.55rem;
+}
+
+.period-note-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.week-note-inline {
+  gap: 0.18rem;
+}
+
+.subtle-note-button {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid rgba(53, 66, 85, 0.04);
+  color: rgba(48, 60, 78, 0.28);
+  box-shadow: none;
+}
+
+.subtle-note-button:hover {
+  background: rgba(255, 255, 255, 0.34);
+  color: rgba(48, 60, 78, 0.46);
+}
+
+.subtle-note-button.has-note {
+  color: rgba(34, 47, 65, 0.6);
+  border-color: rgba(53, 66, 85, 0.08);
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.goal-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.goal-week-head > strong,
+.week-note-inline > strong {
+  margin: 0;
+}

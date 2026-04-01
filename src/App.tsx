@@ -2914,18 +2914,20 @@ function App() {
                   <button type="button" className={`ghost-button ${goalViewMode === 'month' ? 'active' : ''}`} onClick={() => setGoalViewMode('month')}>Mois</button>
                   <button type="button" className={`ghost-button ${goalViewMode === 'year' ? 'active' : ''}`} onClick={() => setGoalViewMode('year')}>Année</button>
                 </div>
-                <div className="date-nav-controls">
+                <div className="date-nav-controls period-note-controls">
                   <button type="button" className="date-arrow" onClick={() => setGoalPeriodDate(goalViewMode === 'month' ? shiftMonth(goalPeriodDate, -1) : shiftYear(goalPeriodDate, -1))} aria-label="Periode precedente">‹</button>
-                  <strong className="date-nav-label">{goalViewMode === 'month' ? monthLabel(goalPeriodDate) : yearLabel(goalPeriodDate)}</strong>
+                  <div className="period-note-inline">
+                    <strong className="date-nav-label">{goalViewMode === 'month' ? monthLabel(goalPeriodDate) : yearLabel(goalPeriodDate)}</strong>
+                    <button
+                      type="button"
+                      className={`ghost-icon subtle-note-button ${(state.goalPeriodNotes?.[goalViewMode === 'month' ? monthNoteKey : yearNoteKey] ?? '').trim() ? 'has-note' : ''}`}
+                      aria-label={goalViewMode === 'month' ? 'Note du mois' : 'Note de l annee'}
+                      onClick={() => openGoalNoteEditor(goalViewMode === 'month' ? monthNoteKey : yearNoteKey, goalViewMode === 'month' ? `Note · ${monthLabel(goalPeriodDate)}` : `Note · ${yearLabel(goalPeriodDate)}`)}
+                    >
+                      ✎
+                    </button>
+                  </div>
                   <button type="button" className="date-arrow" onClick={() => setGoalPeriodDate(goalViewMode === 'month' ? shiftMonth(goalPeriodDate, 1) : shiftYear(goalPeriodDate, 1))} aria-label="Periode suivante">›</button>
-                  <button
-                    type="button"
-                    className="ghost-icon subtle-note-button"
-                    aria-label={goalViewMode === 'month' ? 'Note du mois' : 'Note de l annee'}
-                    onClick={() => openGoalNoteEditor(goalViewMode === 'month' ? monthNoteKey : yearNoteKey, goalViewMode === 'month' ? `Note · ${monthLabel(goalPeriodDate)}` : `Note · ${yearLabel(goalPeriodDate)}`)}
-                  >
-                    ✎
-                  </button>
                 </div>
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={() => openGoalModal(null, null)}>+</button>
@@ -2963,18 +2965,20 @@ function App() {
                     return (
                       <section key={week.start} className="goal-week-block minimal-week-block" onClick={() => weekGoals.length === 0 ? openGoalModal(week.start) : undefined}>
                         <div className="goal-week-head minimal-week-head">
-                          <strong>{week.label}</strong>
-                          <button
-                            type="button"
-                            className="ghost-icon subtle-note-button"
-                            aria-label={`Note ${week.label}`}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              openGoalNoteEditor(`week:${week.start}`, `Note · ${week.label}`)
-                            }}
-                          >
-                            ✎
-                          </button>
+                          <div className="period-note-inline week-note-inline">
+                            <strong>{week.label}</strong>
+                            <button
+                              type="button"
+                              className={`ghost-icon subtle-note-button ${(state.goalPeriodNotes?.[`week:${week.start}`] ?? '').trim() ? 'has-note' : ''}`}
+                              aria-label={`Note ${week.label}`}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openGoalNoteEditor(`week:${week.start}`, `Note · ${week.label}`)
+                              }}
+                            >
+                              ✎
+                            </button>
+                          </div>
                         </div>
                         {weekGoals.length === 0 && (
                           <div className="goal-empty-state subtle-empty-state">
