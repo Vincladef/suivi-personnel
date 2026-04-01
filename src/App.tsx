@@ -63,6 +63,7 @@ type TrackerItem = {
   module: ModuleKey
   title: string
   description: string
+  category: string
   inputKind: InputKind
   priority: Priority
   checklistTemplate: string[]
@@ -115,6 +116,8 @@ type AppState = {
   trackerItems: TrackerItem[]
   occurrences: TrackerOccurrence[]
   goals: Goal[]
+  lastTrackerCategory?: string
+  lastPerformanceCategoryFilter?: string
 }
 
 type DebugEntry = {
@@ -138,6 +141,7 @@ type TrackerDraft = {
   module: ModuleKey
   title: string
   description: string
+  category: string
   inputKind: InputKind
   priority: Priority
   frequencyKind: FrequencyKind
@@ -238,6 +242,7 @@ const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   module,
   title: '',
   description: '',
+  category: '',
   inputKind: 'tristate',
   priority: 'medium',
   frequencyKind: 'daily',
@@ -272,6 +277,7 @@ function trackerDraftFromItem(item: TrackerItem): TrackerDraft {
     module: item.module,
     title: item.title,
     description: item.description,
+    category: item.category ?? '',
     inputKind: item.inputKind,
     priority: item.priority,
     frequencyKind: item.frequency?.kind ?? 'daily',
@@ -775,6 +781,7 @@ function normalizeTrackerItem(raw: Partial<TrackerItem>): TrackerItem {
     module: raw.module ?? 'habits',
     title: raw.title ?? '',
     description: raw.description ?? '',
+    category: raw.category ?? '',
     inputKind: raw.inputKind ?? 'tristate',
     priority: raw.priority ?? 'medium',
     checklistTemplate: raw.checklistTemplate ?? [],
@@ -851,7 +858,13 @@ function normalizeState(raw: Partial<AppState>): AppState {
     ),
   }))
   const goals = (raw.goals ?? []).map((goal) => normalizeGoal(goal))
-  return { trackerItems, occurrences, goals }
+  return {
+    trackerItems,
+    occurrences,
+    goals,
+    lastTrackerCategory: raw.lastTrackerCategory ?? '',
+    lastPerformanceCategoryFilter: raw.lastPerformanceCategoryFilter ?? '',
+  }
 }
 
 function loadState(): AppState {
@@ -978,6 +991,7 @@ function HistoryCarousel({
 function App() {
   const [view, setView] = useState<ViewKey>('habits')
   const [state, setState] = useState<AppState>(() => loadState())
+  const [performanceCategoryFilter, setPerformanceCategoryFilter] = useState<string>(state.lastPerformanceCategoryFilter ?? '')
   const [authReady, setAuthReady] = useState(false)
   const [remoteReady, setRemoteReady] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -999,7 +1013,10 @@ function App() {
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const checklistDragRef = useRef<{ scope: string; index: number } | null>(null)
   const [trackerDraft, setTrackerDraft] = useState<TrackerDraft>(defaultTrackerDraft('habits'))
+  const [trackerCategoryQuery, setTrackerCategoryQuery] = useState('')
+  const [trackerCategoryFocused, setTrackerCategoryFocused] = useState(false)
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(defaultGoalDraft())
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [goalViewMode, setGoalViewMode] = useState<'month' | 'year'>('month')
   const [goalPeriodDate, setGoalPeriodDate] = useState(startOfMonth(today))
 
@@ -1100,6 +1117,16 @@ function App() {
 
   const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
   const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
+  const allCategories = Array.from(new Set(
+    state.trackerItems
+      .map((item) => (item.category || '').trim())
+      .filter((value) => value.length > 0),
+  )).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+  const performanceCategories = Array.from(new Set(
+    performanceItems
+      .map((item) => (item.category || '').trim())
+      .filter((value) => value.length > 0),
+  )).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
   const habitOccurrences = state.occurrences
     .filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard')
     .sort((left, right) => right.key - left.key)
@@ -1120,7 +1147,15 @@ function App() {
   const habitRestItems = habitItems.filter((item) => (resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
   const visibleHabitItems = habitItems.filter((item) => (resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state !== 'rest')
   const performanceRestItems = performanceItems.filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
-  const visiblePerformanceItems = performanceItems.filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state !== 'rest')
+  const visiblePerformanceItems = performanceItems
+    .filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state !== 'rest')
+    .filter((item) => {
+      if (!performanceCategoryFilter) return true
+      return (item.category || '').trim() === performanceCategoryFilter
+    })
+  const hasAnyPerformance = performanceItems.length > 0
+  const hasVisiblePerformance = visiblePerformanceItems.length > 0
+  const effectivePerformanceFilter = performanceCategoryFilter && !hasVisiblePerformance && hasAnyPerformance ? '' : performanceCategoryFilter
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
@@ -1268,11 +1303,13 @@ function App() {
   function saveTrackerItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const checklistTemplate = trackerDraft.inputKind === 'checklist' ? trackerDraft.checklistItems : []
+    const normalizedCategory = trackerDraft.category.trim()
     const item: TrackerItem = {
       id: editingTrackerId ?? crypto.randomUUID(),
       module: trackerDraft.module,
       title: trackerDraft.title,
       description: trackerDraft.description,
+      category: normalizedCategory,
       inputKind: trackerDraft.inputKind,
       priority: trackerDraft.priority,
       checklistTemplate,
@@ -1332,6 +1369,7 @@ function App() {
       patchState({
         trackerItems: state.trackerItems.map((candidate) => candidate.id === editingTrackerId ? item : candidate),
         occurrences: nextOccurrences,
+        lastTrackerCategory: normalizedCategory || state.lastTrackerCategory,
       })
       writeDebugLog('tracker-item-updated', { itemId: editingTrackerId, title: item.title, module: item.module })
     } else {
@@ -1348,7 +1386,7 @@ function App() {
         }
       })
 
-      patchState({ trackerItems: nextItems, occurrences: nextOccurrences })
+      patchState({ trackerItems: nextItems, occurrences: nextOccurrences, lastTrackerCategory: normalizedCategory || state.lastTrackerCategory })
       writeDebugLog('tracker-item-added', { module: trackerDraft.module, title: trackerDraft.title, inputKind: trackerDraft.inputKind, priority: trackerDraft.priority })
     }
 
@@ -1368,8 +1406,8 @@ function App() {
           ? goalDueDateForHorizon('year', goalDraft.dueDate)
           : goalDraft.dueDate
 
-    const goal: Goal = {
-      id: crypto.randomUUID(),
+    const base: Goal = {
+      id: editingGoalId ?? crypto.randomUUID(),
       title: goalDraft.title,
       description: goalDraft.description,
       horizon: goalDraft.horizon,
@@ -1389,9 +1427,18 @@ function App() {
       note: '',
     }
 
-    patchState({ goals: [...state.goals, goal] })
-    writeDebugLog('goal-added', { title: goal.title, horizon: goal.horizon, dueDate: goal.dueDate, resultKind: goal.resultKind })
+    if (editingGoalId) {
+      patchState({
+        goals: state.goals.map((goal) => goal.id === editingGoalId ? { ...goal, ...base, id: goal.id } : goal),
+      })
+      writeDebugLog('goal-updated', { goalId: editingGoalId, title: base.title, horizon: base.horizon, dueDate: base.dueDate, resultKind: base.resultKind })
+    } else {
+      patchState({ goals: [...state.goals, base] })
+      writeDebugLog('goal-added', { title: base.title, horizon: base.horizon, dueDate: base.dueDate, resultKind: base.resultKind })
+    }
+
     setGoalDraft(defaultGoalDraft())
+    setEditingGoalId(null)
     setModalView(null)
   }
 
@@ -1625,9 +1672,20 @@ function App() {
   }
 
   function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
-    setTrackerActionMenuId(null)
-    setEditingTrackerId(item?.id ?? null)
-    setTrackerDraft(item ? trackerDraftFromItem(item) : defaultTrackerDraft(module))
+    if (item) {
+      setEditingTrackerId(item.id)
+      setTrackerDraft(trackerDraftFromItem(item))
+      setTrackerCategoryQuery(item.category ?? '')
+    } else {
+      const baseDraft = defaultTrackerDraft(module)
+      const nextDraft = state.lastTrackerCategory
+        ? { ...baseDraft, category: state.lastTrackerCategory }
+        : baseDraft
+      setEditingTrackerId(null)
+      setTrackerDraft(nextDraft)
+      setTrackerCategoryQuery(nextDraft.category)
+    }
+
     setModalView(module)
   }
 
@@ -1647,11 +1705,34 @@ function App() {
         }
       }),
     })
-    setTrackerActionMenuId(null)
+    setModalView(null)
+    setEditingTrackerId(null)
     writeDebugLog('tracker-item-deleted', { itemId, module: item.module, title: item.title })
   }
 
-  function openGoalModal(weekDate?: string | null) {
+  function openGoalModal(weekDate?: string | null, goalToEdit?: Goal | null) {
+    if (goalToEdit) {
+      const draft: GoalDraft = {
+        title: goalToEdit.title,
+        description: goalToEdit.description,
+        horizon: goalToEdit.horizon,
+        dueDate: goalToEdit.dueDate,
+        weekDate: goalToEdit.weekDate ?? startOfWeek(goalToEdit.dueDate),
+        resultKind: goalToEdit.resultKind,
+        priority: goalToEdit.priority,
+        reminder: goalToEdit.reminder,
+        checklistItems: [...goalToEdit.checklistTemplate],
+        newChecklistItem: '',
+        targetMode: goalToEdit.target?.mode ?? 'atLeast',
+        targetValue: goalToEdit.target ? String(goalToEdit.target.value) : '',
+        targetUnit: goalToEdit.target?.unit ?? '',
+      }
+      setEditingGoalId(goalToEdit.id)
+      setGoalDraft(draft)
+      setModalView('goals')
+      return
+    }
+
     const baseDate = weekDate ?? goalPeriodDate
     const horizon = weekDate ? 'week' : goalViewMode
     const normalizedWeekDate = weekDate ? startOfWeek(weekDate) : startOfWeek(baseDate)
@@ -1667,6 +1748,7 @@ function App() {
       dueDate,
       weekDate: normalizedWeekDate,
     })
+    setEditingGoalId(null)
     setModalView('goals')
   }
 
@@ -2072,6 +2154,7 @@ function App() {
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>
             </div>
+
             <div className="tracker-list">
               {visibleHabitItems.length === 0 && (
                 <article className="empty-panel">
@@ -2079,60 +2162,81 @@ function App() {
                   <p>Ajoute seulement tes propres consignes.</p>
                 </article>
               )}
-              {visibleHabitItems.map((item) => {
-                const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
-                return (
-                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
-                  {isCelebrating && (
-                    <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
-                      {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
-                        <span key={`${glyph}-${index}`}>{glyph}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="tracker-head">
-                    <button
-                      type="button"
-                      className="tracker-open"
-                      onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}
-                      aria-label={`Renseigner ${item.title}`}
-                    >
-                      <div className="tracker-open-copy compact-tracker-open-copy">
-                        <strong className={`tracker-title state-text-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{item.title}</strong>
-                      </div>
-                    </button>
-                    <div className="tracker-card-actions">
-                      <div className="tracker-menu-wrap">
-                        <button
-                          type="button"
-                          className="ghost-icon tracker-menu-button"
-                          aria-label={`Modifier ${item.title}`}
-                          onClick={() => openTrackerModal('habits', item)}
-                        >
-                          ⋮
-                        </button>
-                      </div>
-                    </div>
-                  </div>
 
+              {visibleHabitItems.length > 0 && (() => {
+                const grouped = visibleHabitItems.reduce<Record<string, TrackerItem[]>>((acc, item) => {
+                  const key = (item.category || '').trim() || 'Autres'
+                  if (!acc[key]) acc[key] = []
+                  acc[key].push(item)
+                  return acc
+                }, {})
+                const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
 
-                  <div className="history-row">
-                    <HistoryCarousel
-                      items={trackerHistory(item.id, 'habits')}
-                      selectedDate={selectedHabitDate}
-                      onSelect={(date) => {
-                        const occurrence = habitOccurrences.find((candidate) => candidate.date === date)
-                        writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, occurrenceId: occurrence?.id })
-                        setSelectedHabitDate(date)
-                        if (occurrence) {
-                          openTrackerEditor('habits', item.id, occurrence.id, date)
-                        }
-                      }}
-                    />
-                  </div>
-                </article>
-              )})}
+                return categoryNames.map((category) => (
+                  <section key={category} className="tracker-category-section">
+                    <header className="tracker-category-head">
+                      <span className="tracker-category-label">{category}</span>
+                    </header>
+                    <div className="tracker-category-list">
+                      {grouped[category].map((item) => {
+                        const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
+                        return (
+                          <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                            {isCelebrating && (
+                              <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
+                                {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
+                                  <span key={`${glyph}-${index}`}>{glyph}</span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="tracker-head">
+                              <button
+                                type="button"
+                                className="tracker-open"
+                                onClick={() => openTrackerEditor('habits', item.id, resolvedHabitOccurrence.id, resolvedHabitOccurrence.date ?? undefined)}
+                                aria-label={`Renseigner ${item.title}`}
+                              >
+                                <div className="tracker-open-copy compact-tracker-open-copy">
+                                  <strong className={`tracker-title state-text-${resolvedHabitOccurrence.entries[item.id]?.state ?? 'unknown'}`}>{item.title}</strong>
+                                </div>
+                              </button>
+                              <div className="tracker-card-actions">
+                                <div className="tracker-menu-wrap">
+                                  <button
+                                    type="button"
+                                    className="ghost-icon tracker-menu-button"
+                                    aria-label={`Modifier ${item.title}`}
+                                    onClick={() => openTrackerModal('habits', item)}
+                                  >
+                                    ⋮
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="history-row">
+                              <HistoryCarousel
+                                items={trackerHistory(item.id, 'habits')}
+                                selectedDate={selectedHabitDate}
+                                onSelect={(date) => {
+                                  const occurrence = habitOccurrences.find((candidate) => candidate.date === date)
+                                  writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, occurrenceId: occurrence?.id })
+                                  setSelectedHabitDate(date)
+                                  if (occurrence) {
+                                    openTrackerEditor('habits', item.id, occurrence.id, date)
+                                  }
+                                }}
+                              />
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </section>
+                ))
+              })()}
             </div>
+
             {habitRestItems.length > 0 && (
               <div className="global-rest-note rest-note-trailing">
                 <span className="global-rest-note-label">En pause apres reussite :</span>
@@ -2145,7 +2249,26 @@ function App() {
         {view === 'performances' && (
           <section className="panel surface-panel">
             <div className="surface-head">
-              <div className="surface-actions" />
+              <div className="surface-actions">
+                {performanceCategories.length > 0 && (
+                  <div className="category-pill-filter">
+                    {performanceCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={`ghost-button category-pill ${effectivePerformanceFilter === category ? 'active' : ''}`}
+                        onClick={() => {
+                          const next = effectivePerformanceFilter === category ? '' : category
+                          setPerformanceCategoryFilter(next)
+                          patchState({ lastPerformanceCategoryFilter: next })
+                        }}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
             </div>
 
@@ -2248,7 +2371,7 @@ function App() {
                   <button type="button" className="date-arrow" onClick={() => setGoalPeriodDate(goalViewMode === 'month' ? shiftMonth(goalPeriodDate, 1) : shiftYear(goalPeriodDate, 1))} aria-label="Periode suivante">›</button>
                 </div>
               </div>
-              <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={() => openGoalModal(null)}>+</button>
+              <button type="button" className="fab-button" aria-label="Ajouter un objectif" onClick={() => openGoalModal(null, null)}>+</button>
             </div>
 
             {goalViewMode === 'month' ? (
@@ -2261,6 +2384,14 @@ function App() {
                           <div>
                             <strong>{goal.title}</strong>
                           </div>
+                          <button
+                            type="button"
+                            className="ghost-icon tracker-menu-button"
+                            aria-label={`Modifier ${goal.title}`}
+                            onClick={() => openGoalModal(null, goal)}
+                          >
+                            ⋮
+                          </button>
                         </div>
                         {renderGoalInput(goal)}
                       </article>
@@ -2284,6 +2415,17 @@ function App() {
                                   <div>
                                     <strong>{goal.title}</strong>
                                   </div>
+                                  <button
+                                    type="button"
+                                    className="ghost-icon tracker-menu-button"
+                                    aria-label={`Modifier ${goal.title}`}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openGoalModal(week.start, goal)
+                                    }}
+                                  >
+                                    ⋮
+                                  </button>
                                 </div>
                                 {renderGoalInput(goal)}
                               </article>
@@ -2367,11 +2509,11 @@ function App() {
       )}
 
       {modalView && (
-          <div className="modal-backdrop" role="presentation" onClick={() => { setModalView(null); setEditingTrackerId(null) }}>
+          <div className="modal-backdrop" role="presentation" onClick={() => { setModalView(null); setEditingTrackerId(null); setEditingGoalId(null) }}>
             <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="modal-head">
-                <h3>{modalView === 'goals' ? 'Ajouter un objectif' : editingTrackerId ? 'Modifier la consigne' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
-                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={() => { setModalView(null); setEditingTrackerId(null) }}>×</button>
+                <h3>{modalView === 'goals' ? editingGoalId ? 'Modifier l objectif' : 'Ajouter un objectif' : editingTrackerId ? 'Modifier la consigne' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
+                <button type="button" className="ghost-icon" aria-label="Fermer" onClick={() => { setModalView(null); setEditingTrackerId(null); setEditingGoalId(null) }}>×</button>
               </div>
 
               {modalView === 'goals' ? (
@@ -2430,11 +2572,49 @@ function App() {
                       <input value={goalDraft.targetUnit} onChange={(event) => setGoalDraft({ ...goalDraft, targetUnit: event.target.value })} placeholder="Unite" />
                     </>
                   )}
-                  <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
+                  <button type="submit">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
                 </form>
               ) : (
                 <form className="form-grid compact-form" onSubmit={saveTrackerItem}>
                   <input required value={trackerDraft.title} onChange={(event) => setTrackerDraft({ ...trackerDraft, title: event.target.value, module: modalView })} placeholder="Titre" />
+                  <div className="field">
+                    <span>Catégorie</span>
+                    <div className="category-input-wrap">
+                      <input
+                        value={trackerDraft.category}
+                        onChange={(event) => {
+                          const value = event.target.value
+                          setTrackerDraft({ ...trackerDraft, category: value, module: modalView })
+                          setTrackerCategoryQuery(value)
+                        }}
+                        onFocus={() => setTrackerCategoryFocused(true)}
+                        onBlur={() => setTrackerCategoryFocused(false)}
+                        placeholder="ex : Sante, Travail..."
+                      />
+                      {trackerCategoryFocused && trackerCategoryQuery.trim() && allCategories.length > 0 && (
+                        <div className="category-suggestion-list">
+                          {allCategories
+                            .filter((category) => category.toLowerCase().includes(trackerCategoryQuery.trim().toLowerCase()))
+                            .slice(0, 5)
+                            .map((category) => (
+                              <button
+                                key={category}
+                                type="button"
+                                className="category-suggestion-item"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => {
+                                  setTrackerDraft({ ...trackerDraft, category, module: modalView })
+                                  setTrackerCategoryQuery(category)
+                                  setTrackerCategoryFocused(false)
+                                }}
+                              >
+                                {category}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
                     <option value="tristate">Oui / Non</option>
                     <option value="score">Echelle qualitative</option>
