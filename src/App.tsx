@@ -1103,24 +1103,13 @@ function App() {
   useEffect(() => {
     if (!trackerActionMenuId) return
 
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (!trackerActionMenuRef.current) return
-      const target = event.target
-      if (target instanceof Node && trackerActionMenuRef.current.contains(target)) return
-      setTrackerActionMenuId(null)
-    }
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setTrackerActionMenuId(null)
     }
 
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('touchstart', handlePointerDown)
     document.addEventListener('keydown', handleEscape)
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('touchstart', handlePointerDown)
       document.removeEventListener('keydown', handleEscape)
     }
   }, [trackerActionMenuId])
