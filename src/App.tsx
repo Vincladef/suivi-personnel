@@ -2122,9 +2122,36 @@ function App() {
               </div>
               <div className="tracker-editor-body">
                 {renderTrackerEditorInput(trackerEditorItem)}
-                <div className="editor-actions">
-                  <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
-                </div>
+                {trackerEditor.module === 'habits' && (
+                  <div className="editor-actions-row">
+                    <div className="rest-quick-control">
+                      <span className="editor-hint">Repos auto</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={trackerEditorItem.restAfterSuccess}
+                        onChange={(event) => {
+                          const nextValue = Number(event.target.value)
+                          patchState({
+                            trackerItems: state.trackerItems.map((candidate) => (
+                              candidate.id === trackerEditorItem.id
+                                ? { ...candidate, restAfterSuccess: Number.isNaN(nextValue) ? 0 : nextValue }
+                                : candidate
+                            )),
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="editor-actions">
+                      <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
+                    </div>
+                  </div>
+                )}
+                {trackerEditor.module !== 'habits' && (
+                  <div className="editor-actions">
+                    <button type="button" className="primary-button" onClick={saveTrackerEditor}>Valider</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
