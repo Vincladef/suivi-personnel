@@ -207,6 +207,27 @@ textarea {
   align-items: center;
 }
 
+.page-head-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.export-sheet-button {
+  min-width: 144px;
+  padding: 0.78rem 0.95rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(42, 55, 82, 0.08);
+  color: #23434f;
+  font-weight: 700;
+  box-shadow: 0 16px 32px rgba(29, 36, 48, 0.08);
+}
+
+.inline-feedback-panel {
+  width: min(980px, 100%);
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
 .page-head h2 {
   font-size: clamp(1.2rem, 1.02rem + 0.9vw, 1.55rem);
   letter-spacing: -0.03em;
@@ -286,12 +307,52 @@ textarea {
   align-items: flex-end;
 }
 
+.category-pill-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.category-pill {
+  padding-inline: 0.7rem;
+  padding-block: 0.3rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+}
+
+.category-pill.active {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
 .tracker-list,
 .goal-list {
   width: 100%;
   height: 100%;
   gap: 0.9rem;
   align-content: start;
+}
+
+.tracker-category-section {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tracker-category-head {
+  padding: 0.1rem 0.15rem;
+}
+
+.tracker-category-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  color: #8b95a6;
+}
+
+.tracker-category-list {
+  display: grid;
+  gap: 0.7rem;
 }
 
 .tracker-list,
@@ -303,6 +364,39 @@ textarea {
 .field {
   display: grid;
   gap: 0.3rem;
+}
+
+.category-input-wrap {
+  position: relative;
+}
+
+.category-suggestion-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.15rem);
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid rgba(151, 164, 186, 0.35);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 32px rgba(23, 32, 49, 0.18);
+  z-index: 50;
+}
+
+.category-suggestion-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0.28rem 0.35rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #1f2f46;
+}
+
+.category-suggestion-item:hover {
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .field span,
@@ -1372,6 +1466,19 @@ small,
 
 .compact-subitem-head {
   gap: 0.4rem;
+}
+
+@media (max-width: 760px) {
+  .page-head {
+    gap: 0.8rem;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-head-actions,
+  .export-sheet-button {
+    width: 100%;
+  }
 }
 
 

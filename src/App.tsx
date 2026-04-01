@@ -1000,6 +1000,8 @@ function App() {
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [sheetExportLoading, setSheetExportLoading] = useState(false)
+  const [sheetExportError, setSheetExportError] = useState('')
   const [adminProfiles, setAdminProfiles] = useState<AdminProfile[]>([])
   const [adminLoading, setAdminLoading] = useState(false)
   const [selectedHabitDate, setSelectedHabitDate] = useState(today)
@@ -1927,6 +1929,7 @@ function App() {
     await signOut(firebaseAuth)
     setView('habits')
     setAdminProfiles([])
+    setSheetExportError('')
   }
 
   function formatAdminDate(value: string | null) {
@@ -1953,6 +1956,40 @@ function App() {
       }
     } finally {
       setAuthSubmitting(false)
+    }
+  }
+
+  async function exportGoogleSheet() {
+    if (!currentUser || sheetExportLoading) return
+
+    setSheetExportLoading(true)
+    setSheetExportError('')
+    const pendingWindow = window.open('', '_blank', 'noopener,noreferrer')
+
+    try {
+      const idToken = await currentUser.getIdToken()
+      const response = await fetch('/.netlify/functions/export-google-sheet', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      })
+      const payload = await response.json() as { ok?: boolean; url?: string; error?: string }
+
+      if (!response.ok || !payload.ok || !payload.url) {
+        throw new Error(payload.error || 'Export Google Sheets impossible.')
+      }
+
+      if (pendingWindow) {
+        pendingWindow.location.href = payload.url
+      } else {
+        window.open(payload.url, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      pendingWindow?.close()
+      setSheetExportError(error instanceof Error ? error.message : 'Export Google Sheets impossible.')
+    } finally {
+      setSheetExportLoading(false)
     }
   }
 
@@ -2165,7 +2202,18 @@ function App() {
             </button>
             <h2>{activeViewTitle}</h2>
           </div>
+          <div className="page-head-actions">
+            <button type="button" className="ghost-button export-sheet-button" onClick={() => void exportGoogleSheet()} disabled={sheetExportLoading}>
+              {sheetExportLoading ? 'Ouverture...' : 'Google Sheets'}
+            </button>
+          </div>
         </header>
+
+        {sheetExportError && (
+          <section className="panel surface-panel inline-feedback-panel">
+            <p className="muted-inline">{sheetExportError}</p>
+          </section>
+        )}
 
         {view === 'habits' && (
           <section className="panel surface-panel">
