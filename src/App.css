@@ -1105,6 +1105,19 @@ small,
   margin-top: 0.2rem;
 }
 
+.performance-footer-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding-top: 0.4rem;
+  background: linear-gradient(180deg, rgba(238, 242, 246, 0), rgba(238, 242, 246, 0.94) 42%, rgba(238, 242, 246, 0.98));
+}
+
+.performance-validate-button {
+  min-width: min(320px, 100%);
+}
+
 @media (max-width: 720px) {
   .date-nav-controls {
     width: 100%;

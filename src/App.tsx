@@ -1079,6 +1079,7 @@ function App() {
   const selectedHabitOccurrence = habitOccurrences.find((occurrence) => occurrence.date === selectedHabitDate)
   const resolvedHabitOccurrence = buildHabitOccurrenceForDate(selectedHabitDate, state.trackerItems, state.occurrences, selectedHabitOccurrence)
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
+  const resolvedPerformanceOccurrence = selectedPerformanceOccurrence ?? createOccurrence('performances', 'standard', state.trackerItems, state.occurrences)
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
@@ -1603,6 +1604,25 @@ function App() {
     updateTrackerResponseDraft(null)
   }
 
+  function commitPerformanceIteration() {
+    const baseOccurrence = selectedPerformanceOccurrence ?? createOccurrence('performances', 'standard', state.trackerItems, state.occurrences)
+    const hasCurrentOccurrence = state.occurrences.some((occurrence) => occurrence.id === baseOccurrence.id)
+    const occurrencesWithCurrent = hasCurrentOccurrence ? state.occurrences : [...state.occurrences, baseOccurrence]
+    const hasNextOccurrence = occurrencesWithCurrent.some((occurrence) => (
+      occurrence.module === 'performances' && occurrence.kind === 'standard' && occurrence.key > baseOccurrence.key
+    ))
+
+    if (hasNextOccurrence) {
+      writeDebugLog('performance-iteration-commit-skipped-next-exists', { occurrenceId: baseOccurrence.id })
+      return
+    }
+
+    const nextOccurrence = createOccurrence('performances', 'standard', state.trackerItems, occurrencesWithCurrent)
+    patchState({ occurrences: [...occurrencesWithCurrent, nextOccurrence] })
+    setPerformanceOccurrenceId(nextOccurrence.id)
+    writeDebugLog('performance-next-iteration-created-on-save', { fromOccurrenceId: baseOccurrence.id, nextOccurrenceId: nextOccurrence.id })
+  }
+
   function saveTrackerEditor() {
     const draft = trackerResponseDraftRef.current
     if (!trackerEditor || !trackerEditorItem || !trackerEditorOccurrence || !draft) return
@@ -1623,19 +1643,6 @@ function App() {
         streak,
         token: Date.now(),
       })
-    }
-
-    if (trackerEditor.module === 'performances' && result) {
-      const hasNextOccurrence = result.occurrences.some((occurrence) => (
-        occurrence.module === 'performances' && occurrence.kind === 'standard' && occurrence.key > trackerEditorOccurrence.key
-      ))
-
-      if (!hasNextOccurrence) {
-        const nextOccurrence = createOccurrence('performances', 'standard', state.trackerItems, result.occurrences)
-        patchState({ occurrences: [...result.occurrences, nextOccurrence] })
-        setPerformanceOccurrenceId(nextOccurrence.id)
-        writeDebugLog('performance-next-iteration-created-on-save', { fromOccurrenceId: trackerEditorOccurrence.id, nextOccurrenceId: nextOccurrence.id })
-      }
     }
 
     writeDebugLog('tracker-editor-saved', { module: trackerEditor.module, itemId: trackerEditor.itemId, occurrenceId: trackerEditorOccurrence.id })
@@ -2039,6 +2046,7 @@ function App() {
               )}
               {performanceItems.map((item) => {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
+                const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 return (
                 <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
@@ -2057,9 +2065,9 @@ function App() {
                     >
                       <div className="tracker-open-copy">
                         <strong>{item.title}</strong>
-                        {entryLabelForInput(item.inputKind, selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown', selectedPerformanceOccurrence?.entries[item.id]?.score) && (
+                        {entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score) && (
                           <div className="tracker-meta">
-                            <span className={`pill ${stateClassName(selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown')}`}>{entryLabelForInput(item.inputKind, selectedPerformanceOccurrence?.entries[item.id]?.state ?? 'unknown', selectedPerformanceOccurrence?.entries[item.id]?.score)}</span>
+                            <span className={`pill ${stateClassName(performanceEntry.state)}`}>{entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score)}</span>
                           </div>
                         )}
                       </div>
@@ -2076,10 +2084,14 @@ function App() {
                     </div>
                   </div>
                   {item.description && <p className="compact-description">{item.description}</p>}
-                  {!selectedPerformanceOccurrence && <p className="muted-inline">La premiere iteration sera creee automatiquement a la premiere saisie.</p>}
                 </article>
               )})}
             </div>
+            {performanceItems.length > 0 && (
+              <div className="performance-footer-actions">
+                <button type="button" className="primary-button performance-validate-button" onClick={commitPerformanceIteration}>Valider</button>
+              </div>
+            )}
           </section>
         )}
 
