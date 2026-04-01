@@ -1094,9 +1094,10 @@ small,
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
   min-width: 0;
-  padding: 0;
+  padding: 0.14rem 0.08rem;
 }
 
 .history-strip::-webkit-scrollbar {
@@ -2075,4 +2076,9 @@ small,
 
 .minimal-week-head .subtle-note-button {
   margin-left: auto;
+}
+
+
+.history-compact-item {
+  transform-origin: center;
 }
