@@ -198,8 +198,9 @@ type GoalDraft = {
 
 const storageKey = 'application-de-suivi-v2'
 const debugStorageKey = 'application-de-suivi-debug-v1'
-const today = '2026-03-21'
-const todayDate = new Date(`${today}T12:00:00`)
+const todayDate = new Date()
+todayDate.setHours(12, 0, 0, 0)
+const today = formatDateKey(todayDate)
 const longDateFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
 const priorityOrder: Priority[] = ['high', 'medium', 'low', 'archived']
