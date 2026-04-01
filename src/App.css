@@ -2210,3 +2210,47 @@ small,
 .tracker-open-copy .tracker-title.state-text-rest {
   color: var(--tone-yellow-text) !important;
 }
+
+
+.split-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.danger-button {
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(88, 64, 60, 0.82);
+  border: 1px solid rgba(159, 64, 55, 0.14);
+  box-shadow: none;
+}
+
+.danger-button:hover {
+  background: rgba(250, 244, 242, 0.96);
+  color: var(--tone-red-soft-text);
+  border-color: rgba(159, 64, 55, 0.22);
+}
+
+.split-actions .primary-button,
+.split-actions button[type='submit'] {
+  margin-left: auto;
+}
+
+.subgoal-add-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(42, 55, 82, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  color: #43536a;
+  box-shadow: 0 8px 20px rgba(29, 36, 48, 0.06);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.subgoal-add-button:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: #28407d;
+}

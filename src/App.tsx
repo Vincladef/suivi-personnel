@@ -2742,10 +2742,10 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
           {installState !== 'hidden' && (
             <div className="install-app-block">
               <button type="button" className="ghost-button install-app-button" onClick={() => void triggerInstallApp()}>
-                {installState === 'installed' ? 'App installee' : 'Ajouter a l ecran d accueil'}
+                {installState === 'installed' ? 'App installée' : 'Ajouter à l’écran d’accueil'}
               </button>
               {installHintOpen && installState === 'manual' && (
-                <p className="muted-inline install-app-hint">Android : ouvre le menu Chrome puis Installer l application ou Ajouter a l ecran d accueil. Si rien n apparait, recharge une fois la page. iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
+                <p className="muted-inline install-app-hint">Android : ouvre le menu Chrome puis Installer l’application ou Ajouter à l’écran d’accueil. Si rien n’apparaît, recharge une fois la page. iPhone : partage Safari puis Ajouter à l’écran d’accueil.</p>
               )}
             </div>
           )}
@@ -3292,7 +3292,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
           <div className="modal-backdrop" role="presentation" onClick={() => { setModalView(null); setEditingTrackerId(null); setEditingGoalId(null) }}>
             <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="modal-head">
-                <h3>{modalView === 'goals' ? editingGoalId ? 'Modifier l objectif' : 'Ajouter un objectif' : editingTrackerId ? 'Modifier la consigne' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
+                <h3>{modalView === 'goals' ? editingGoalId ? 'Modifier l’objectif' : 'Ajouter un objectif' : editingTrackerId ? 'Modifier la consigne' : modalView === 'habits' ? 'Ajouter une habitude' : 'Ajouter une performance'}</h3>
                 <button type="button" className="ghost-icon" aria-label="Fermer" onClick={() => { setModalView(null); setEditingTrackerId(null); setEditingGoalId(null) }}>×</button>
               </div>
 
@@ -3355,7 +3355,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                   <div className="subitem-group compact-subitem-group">
                     <div className="subitem-group-head">
                       <strong>Sous-objectifs</strong>
-                      <button type="button" className="ghost-button compact-action" onClick={() => setGoalDraft({ ...goalDraft, subItems: [...goalDraft.subItems, defaultSubDraft()] })}>Ajouter un sous-objectif</button>
+                      <button type="button" className="ghost-icon subgoal-add-button" aria-label="Ajouter un sous-objectif" onClick={() => setGoalDraft({ ...goalDraft, subItems: [...goalDraft.subItems, defaultSubDraft()] })}>+</button>
                     </div>
                     {goalDraft.subItems.map((subItem) => (
                       <section key={subItem.id} className="subitem-card compact-subitem-card">
