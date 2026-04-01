@@ -3384,7 +3384,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         Supprimer
                       </button>
                     )}
-                    <button type="submit">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
+                    <button type="submit" className="primary-button">{editingGoalId ? 'Enregistrer' : 'Ajouter'}</button>
                   </div>
                 </form>
               ) : (
