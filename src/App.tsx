@@ -666,11 +666,11 @@ function buildUpdatedOccurrencesAfterEntryPatch(
   }
 }
 
-function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[]) {
+function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[], beforeDate?: string) {
   const item = trackerItems.find((candidate) => candidate.id === itemId)
   if (!item) return null
   return occurrences
-    .filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard' && occurrence.date)
+    .filter((occurrence) => occurrence.module === 'habits' && occurrence.kind === 'standard' && occurrence.date && (!beforeDate || occurrence.date < beforeDate))
     .sort((left, right) => right.key - left.key)
     .find((occurrence) => {
       const entry = occurrence.entries[itemId]
@@ -679,11 +679,11 @@ function latestSuccessDate(itemId: string, occurrences: TrackerOccurrence[], tra
     ?.date ?? null
 }
 
-function latestSuccessIteration(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[]) {
+function latestSuccessIteration(itemId: string, occurrences: TrackerOccurrence[], trackerItems: TrackerItem[], beforeKey?: number) {
   const item = trackerItems.find((candidate) => candidate.id === itemId)
   if (!item) return null
   return occurrences
-    .filter((occurrence) => occurrence.module === 'performances' && occurrence.kind === 'standard')
+    .filter((occurrence) => occurrence.module === 'performances' && occurrence.kind === 'standard' && (beforeKey == null || occurrence.key < beforeKey))
     .sort((left, right) => right.key - left.key)
     .find((occurrence) => {
       const entry = occurrence.entries[itemId]
@@ -834,7 +834,7 @@ function createOccurrence(
         .map((item) => {
           const base = emptyEntry(item)
           if (kind === 'review') return [item.id, base]
-          const lastSuccess = latestSuccessDate(item.id, occurrences, items)
+          const lastSuccess = latestSuccessDate(item.id, occurrences, items, occurrenceDate)
           const inRest = lastSuccess
             ? item.restAfterSuccess > 0 && daysBetween(lastSuccess, occurrenceDate) > 0 && daysBetween(lastSuccess, occurrenceDate) <= item.restAfterSuccess
             : false
@@ -865,7 +865,7 @@ function createOccurrence(
       .map((item) => {
         const base = emptyEntry(item)
         if (kind === 'review') return [item.id, base]
-        const lastSuccess = latestSuccessIteration(item.id, occurrences, items)
+        const lastSuccess = latestSuccessIteration(item.id, occurrences, items, key)
         const inRest = lastSuccess != null && item.restAfterSuccess > 0 && key - lastSuccess > 0 && key - lastSuccess <= item.restAfterSuccess
         if (inRest) return [item.id, { ...base, state: 'rest' as EntryState }]
         return [item.id, base]
@@ -1068,7 +1068,7 @@ function buildHabitOccurrenceForDate(
       .filter((item) => item.module === 'habits')
       .map((item) => {
         const base = emptyEntry(item)
-        const lastSuccess = latestSuccessDate(item.id, occurrences, items)
+        const lastSuccess = latestSuccessDate(item.id, occurrences, items, date)
         const inRest = lastSuccess
           ? item.restAfterSuccess > 0 && daysBetween(lastSuccess, date) > 0 && daysBetween(lastSuccess, date) <= item.restAfterSuccess
           : false
