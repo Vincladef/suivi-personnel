@@ -1041,6 +1041,8 @@ function App() {
   const resolvedHabitOccurrence = buildHabitOccurrenceForDate(selectedHabitDate, state.trackerItems, state.occurrences, selectedHabitOccurrence)
   const selectedPerformanceOccurrence = performanceOccurrences.find((occurrence) => occurrence.id === performanceOccurrenceId) ?? performanceOccurrences[0]
   const resolvedPerformanceOccurrence = selectedPerformanceOccurrence ?? createOccurrence('performances', 'standard', state.trackerItems, state.occurrences)
+  const habitRestItems = habitItems.filter((item) => (resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
+  const performanceRestItems = performanceItems.filter((item) => (resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)).state === 'rest')
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
@@ -1953,6 +1955,12 @@ function App() {
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter une habitude" onClick={() => openTrackerModal('habits')}>+</button>
             </div>
+            {habitRestItems.length > 0 && (
+              <div className="global-rest-note">
+                <span className="global-rest-note-label">Repos auto :</span>
+                <span>{habitRestItems.map((item) => item.title).join(' · ')}</span>
+              </div>
+            )}
 
             <div className="tracker-list">
               {habitItems.length === 0 && (
@@ -2110,8 +2118,16 @@ function App() {
               )})}
             </div>
             {performanceItems.length > 0 && (
-              <div className="performance-footer-actions">
-                <button type="button" className="primary-button performance-validate-button" onClick={commitPerformanceIteration}>Valider</button>
+              <div className="performance-footer-actions-wrap">
+                <div className="performance-footer-actions">
+                  <button type="button" className="primary-button performance-validate-button" onClick={commitPerformanceIteration}>Valider</button>
+                </div>
+                {performanceRestItems.length > 0 && (
+                  <div className="global-rest-note align-center">
+                    <span className="global-rest-note-label">Repos auto :</span>
+                    <span>{performanceRestItems.map((item) => item.title).join(' · ')}</span>
+                  </div>
+                )}
               </div>
             )}
           </section>
