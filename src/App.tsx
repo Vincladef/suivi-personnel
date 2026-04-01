@@ -1051,7 +1051,30 @@ function App() {
         if (snapshot.exists()) {
           const data = snapshot.data() as { state?: Partial<AppState> }
           if (data.state) {
-            setState(normalizeState(data.state))
+            const remoteState = normalizeState(data.state)
+            const localState = loadState()
+            const remoteHasData = remoteState.trackerItems.length > 0 || remoteState.occurrences.length > 0 || remoteState.goals.length > 0
+            const localHasData = localState.trackerItems.length > 0 || localState.occurrences.length > 0 || localState.goals.length > 0
+
+            if (!remoteHasData && localHasData) {
+              writeDebugLog('remote-state-empty-recovered-from-local', {
+                uid: user.uid,
+                email: user.email ?? '',
+                trackerItems: localState.trackerItems.length,
+                occurrences: localState.occurrences.length,
+                goals: localState.goals.length,
+              })
+
+              await setDoc(doc(firebaseDb, 'appStates', user.uid), {
+                email: user.email ?? '',
+                state: localState,
+                updatedAt: serverTimestamp(),
+              }, { merge: true })
+
+              setState(localState)
+            } else {
+              setState(remoteState)
+            }
           }
         } else {
           const localState = loadState()

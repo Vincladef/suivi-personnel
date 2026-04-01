@@ -282,6 +282,8 @@ export default async function handler() {
       if (!document) continue
       const appState = firestoreDocumentToObject(document)
       const state = appState.state ?? {}
+      const hasRealData = (state.trackerItems?.length ?? 0) > 0 || (state.occurrences?.length ?? 0) > 0 || (state.goals?.length ?? 0) > 0
+      if (!hasRealData) continue
       const dueGoals = collectDueGoals(state, today)
       for (const goal of dueGoals) {
         const { html, text } = buildGoalReminderEmail(goal)
@@ -297,16 +299,14 @@ export default async function handler() {
       }
     }
 
-    return {
-      statusCode: 200,
+    return new Response(JSON.stringify({ ok: true, sent: sentItems.length, items: sentItems, today }), {
+      status: 200,
       headers: { 'content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ ok: true, sent: sentItems.length, items: sentItems, today }),
-    }
+    })
   } catch (error) {
-    return {
-      statusCode: 500,
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }), {
+      status: 500,
       headers: { 'content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }),
-    }
+    })
   }
 }

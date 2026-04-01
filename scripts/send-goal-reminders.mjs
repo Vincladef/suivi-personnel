@@ -288,6 +288,11 @@ async function main() {
 
   const appState = firestoreDocumentToObject(document)
   const state = appState.state ?? {}
+  const hasRealData = (state.trackerItems?.length ?? 0) > 0 || (state.occurrences?.length ?? 0) > 0 || (state.goals?.length ?? 0) > 0
+  if (!hasRealData) {
+    console.log(JSON.stringify({ ok: true, uid, sent: 0, reason: 'empty-state-skipped', today }))
+    return
+  }
   const dueGoals = collectDueGoals(state, today)
 
   if (dueGoals.length === 0) {
