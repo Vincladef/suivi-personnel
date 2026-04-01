@@ -609,7 +609,7 @@ small,
 .compact-description,
 .empty-panel p {
   margin: 0;
-  color: #5f6b7d;
+  color: rgba(72, 84, 100, 0.64);
 }
 
 .compact-description {
@@ -630,6 +630,7 @@ small,
 .empty-panel h3 {
   font-size: clamp(1.18rem, 1.02rem + 0.45vw, 1.42rem);
   letter-spacing: -0.02em;
+  color: rgba(25, 39, 58, 0.52);
 }
 
 .empty-panel p {
@@ -740,8 +741,8 @@ small,
 
 .subtle-empty-panel h3,
 .subtle-empty-state span {
-  color: rgba(31, 47, 70, 0.56);
-  font-weight: 650;
+  color: rgba(31, 47, 70, 0.38);
+  font-weight: 600;
 }
 
 .subtle-empty-state {
@@ -1963,4 +1964,18 @@ small,
 .notification-actions {
   display: flex;
   justify-content: flex-start;
+}
+
+
+.goal-empty-state,
+.global-rest-note,
+.muted-inline,
+.empty-panel p,
+.subtle-empty-state {
+  color: rgba(63, 74, 90, 0.58);
+}
+
+.goal-empty-state small,
+.global-rest-note-label {
+  color: rgba(63, 74, 90, 0.46);
 }
