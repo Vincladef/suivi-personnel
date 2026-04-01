@@ -2254,3 +2254,20 @@ small,
   background: rgba(255, 255, 255, 0.96);
   color: #28407d;
 }
+
+
+.subitem-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.subitem-group-head strong {
+  display: inline-flex;
+  align-items: center;
+}
+
+.subitem-group-head .subgoal-add-button {
+  flex: 0 0 auto;
+}
