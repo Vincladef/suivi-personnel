@@ -2108,12 +2108,16 @@ function App() {
                           type="button"
                           className="ghost-icon tracker-menu-button"
                           aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect()
+                            document.documentElement.style.setProperty('--tracker-menu-top', `${rect.bottom}px`)
+                            setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)
+                          }}
                         >
                           ⋮
                         </button>
                         {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
+                          <div className="tracker-action-menu" style={{ top: 'calc(var(--tracker-menu-top, 0px) + 3rem)' }}>
                             <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
                             <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
                           </div>
@@ -2197,12 +2201,16 @@ function App() {
                           type="button"
                           className="ghost-icon tracker-menu-button"
                           aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect()
+                            document.documentElement.style.setProperty('--tracker-menu-top', `${rect.bottom}px`)
+                            setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)
+                          }}
                         >
                           ⋮
                         </button>
                         {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
+                          <div className="tracker-action-menu" style={{ top: 'calc(var(--tracker-menu-top, 0px) + 3rem)' }}>
                             <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
                             <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
                           </div>
