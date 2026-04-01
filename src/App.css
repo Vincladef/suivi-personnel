@@ -1150,9 +1150,9 @@ small,
   position: sticky;
   bottom: 0;
   display: grid;
-  gap: 0.7rem;
-  padding-top: 0.7rem;
-  margin-top: 0.45rem;
+  gap: 1rem;
+  padding-top: 1rem;
+  margin-top: 0.9rem;
   background: linear-gradient(180deg, rgba(238, 242, 246, 0), rgba(238, 242, 246, 0.94) 42%, rgba(238, 242, 246, 0.98));
 }
 
@@ -1183,6 +1183,7 @@ small,
 .global-rest-note.align-center {
   justify-content: center;
   text-align: center;
+  padding-top: 0.15rem;
 }
 
 .global-rest-note-label {

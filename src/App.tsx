@@ -2026,7 +2026,7 @@ function App() {
             </div>
             {habitRestItems.length > 0 && (
               <div className="global-rest-note rest-note-trailing">
-                <span className="global-rest-note-label">Repos auto :</span>
+                <span className="global-rest-note-label">En pause apres reussite :</span>
                 <span>{habitRestItems.map((item) => item.title).join(' · ')}</span>
               </div>
             )}
@@ -2120,7 +2120,7 @@ function App() {
                 </div>
                 {performanceRestItems.length > 0 && (
                   <div className="global-rest-note align-center">
-                    <span className="global-rest-note-label">Repos auto :</span>
+                    <span className="global-rest-note-label">En pause apres reussite :</span>
                     <span>{performanceRestItems.map((item) => item.title).join(' · ')}</span>
                   </div>
                 )}
