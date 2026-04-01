@@ -1613,14 +1613,20 @@ function App() {
     ))
 
     if (hasNextOccurrence) {
-      writeDebugLog('performance-iteration-commit-skipped-next-exists', { occurrenceId: baseOccurrence.id })
+      const nextExistingOccurrence = occurrencesWithCurrent
+        .filter((occurrence) => occurrence.module === 'performances' && occurrence.kind === 'standard' && occurrence.key > baseOccurrence.key)
+        .sort((left, right) => left.key - right.key)[0]
+      if (nextExistingOccurrence) {
+        setPerformanceOccurrenceId(nextExistingOccurrence.id)
+      }
+      writeDebugLog('performance-iteration-commit-skipped-next-exists', { occurrenceId: baseOccurrence.id, nextOccurrenceId: nextExistingOccurrence?.id })
       return
     }
 
     const nextOccurrence = createOccurrence('performances', 'standard', state.trackerItems, occurrencesWithCurrent)
     patchState({ occurrences: [...occurrencesWithCurrent, nextOccurrence] })
     setPerformanceOccurrenceId(nextOccurrence.id)
-    writeDebugLog('performance-next-iteration-created-on-save', { fromOccurrenceId: baseOccurrence.id, nextOccurrenceId: nextOccurrence.id })
+    writeDebugLog('performance-next-iteration-created-on-commit', { fromOccurrenceId: baseOccurrence.id, nextOccurrenceId: nextOccurrence.id })
   }
 
   function saveTrackerEditor() {
