@@ -449,6 +449,31 @@ function stateClassName(state: EntryState) {
 }
 
 
+function displayToneState(inputKind: InputKind, entry: { state: EntryState; score: number | null; checklist: ChecklistStatus[]; numericValue: number | null; note: string }) {
+  if (inputKind === 'score') {
+    if (entry.score == null) return 'unknown'
+    if (entry.score >= 3) return 'success'
+    if (entry.score === 2) return 'excused'
+    return 'failed'
+  }
+  if (inputKind === 'checklist') {
+    if (!entry.checklist.length || entry.checklist.every((value) => value === 'unknown')) return 'unknown'
+    const completedCount = entry.checklist.filter((value) => value === 'done' || value === 'excused').length
+    const ratio = completedCount / entry.checklist.length
+    if (ratio >= 0.75) return 'success'
+    if (ratio >= 0.5) return 'excused'
+    return 'failed'
+  }
+  if (inputKind === 'numeric') {
+    return entry.state
+  }
+  if (inputKind === 'note') {
+    return entry.note.trim() ? 'success' : 'unknown'
+  }
+  return entry.state
+}
+
+
 function scoreTone(score: number | null | undefined): 'failed-0' | 'failed-1' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
   if (score == null) return 'unknown'
   if (score <= 0) return 'failed-0'
@@ -2771,6 +2796,7 @@ function App() {
                       {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
+                        const habitToneState = displayToneState(item.inputKind, habitEntry)
                         return (
                           <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
@@ -2788,7 +2814,7 @@ function App() {
                                 aria-label={`Renseigner ${item.title}`}
                               >
                                 <div className="tracker-open-copy compact-tracker-open-copy">
-                                  <strong className={`tracker-title state-text-${habitEntry.state} ${trackerToneClass(item, habitEntry)}`}>{item.title}</strong>
+                                  <strong className={`tracker-title state-text-${habitToneState} ${trackerToneClass(item, habitEntry)}`}>{item.title}</strong>
                                 </div>
                               </button>
                               <div className="tracker-card-actions">
@@ -2872,6 +2898,7 @@ function App() {
               {visiblePerformanceItems.map((item) => {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
+                const performanceToneState = displayToneState(item.inputKind, performanceEntry)
                 return (
                 <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
@@ -2889,7 +2916,7 @@ function App() {
                       aria-label={`Renseigner ${item.title}`}
                     >
                       <div className="tracker-open-copy">
-                        <strong className={`tracker-title performance-title state-text-${performanceEntry.state} ${trackerToneClass(item, performanceEntry)}`}>{item.title}</strong>
+                        <strong className={`tracker-title performance-title state-text-${performanceToneState} ${trackerToneClass(item, performanceEntry)}`}>{item.title}</strong>
                         {entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score) && (
                           <div className="tracker-meta">
                             <span className={`pill ${stateClassName(performanceEntry.state)} ${trackerToneClass(item, performanceEntry)}`}>{entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score)}</span>

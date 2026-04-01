@@ -1,14 +1,14 @@
 :root {
-  --tone-red-strong-bg: var(--tone-red-strong-bg);
-  --tone-red-strong-text: var(--tone-red-strong-text);
-  --tone-red-soft-bg: var(--tone-red-soft-bg);
-  --tone-red-soft-text: var(--tone-red-soft-text);
-  --tone-yellow-bg: var(--tone-yellow-bg);
-  --tone-yellow-text: var(--tone-yellow-text);
-  --tone-kaki-soft-bg: var(--tone-kaki-soft-bg);
-  --tone-kaki-soft-text: var(--tone-kaki-soft-text);
-  --tone-kaki-strong-bg: var(--tone-kaki-strong-bg);
-  --tone-kaki-strong-text: var(--tone-kaki-strong-text);
+  --tone-red-strong-bg: #f5d6d1;
+  --tone-red-strong-text: #9f4037;
+  --tone-red-soft-bg: #efddcf;
+  --tone-red-soft-text: #a86a4c;
+  --tone-yellow-bg: #f3ecd1;
+  --tone-yellow-text: #8d7829;
+  --tone-kaki-soft-bg: #e7e6d4;
+  --tone-kaki-soft-text: #6f7440;
+  --tone-kaki-strong-bg: #dde3cf;
+  --tone-kaki-strong-text: #596338;
 }
 :root {
   color: #1d2430;
