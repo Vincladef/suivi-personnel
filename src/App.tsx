@@ -3591,7 +3591,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     {editingTrackerId ? (
                       <button type="button" className="ghost-button danger" onClick={() => deleteTrackerItem(editingTrackerId)}>Supprimer la consigne</button>
                     ) : <span />}
-                    <button type="submit">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
+                    <button type="submit" className="primary-button">{editingTrackerId ? 'Enregistrer' : 'Ajouter'}</button>
                   </div>
                 </form>
               )}
