@@ -1371,7 +1371,8 @@ small,
 }
 
 .goal-card.tone-success {
-  border-color: rgba(61, 138, 92, 0.22);
+  border-color: rgba(61, 138, 92, 0.16);
+  background: linear-gradient(180deg, rgba(236, 247, 240, 0.98), rgba(247, 252, 248, 0.92));
 }
 
 .goal-card.tone-success strong {
@@ -1379,7 +1380,8 @@ small,
 }
 
 .goal-card.tone-neutral {
-  border-color: rgba(162, 141, 80, 0.22);
+  border-color: rgba(162, 141, 80, 0.16);
+  background: linear-gradient(180deg, rgba(251, 246, 231, 0.98), rgba(255, 251, 241, 0.92));
 }
 
 .goal-card.tone-neutral strong {
@@ -1387,11 +1389,16 @@ small,
 }
 
 .goal-card.tone-failed {
-  border-color: rgba(171, 77, 63, 0.22);
+  border-color: rgba(171, 77, 63, 0.16);
+  background: linear-gradient(180deg, rgba(252, 239, 236, 0.98), rgba(255, 247, 245, 0.92));
 }
 
 .goal-card.tone-failed strong {
   color: #a1382d;
+}
+
+.goal-card.tone-unknown {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(251, 252, 255, 0.86));
 }
 
 .compact-goal-head {
@@ -1708,4 +1715,13 @@ small,
   0% { transform: scale(1); }
   45% { transform: scale(1.03); }
   100% { transform: scale(1); }
+}
+
+.goal-open {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
 }

@@ -1651,7 +1651,7 @@ function App() {
           value={entry.state === 'success' ? 'yes' : entry.state === 'failed' ? 'no' : ''}
           onChange={(event) => onPatch({ state: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
         >
-          <option value="">Choisir une action</option>
+          <option value="">Choisir</option>
           <option value="yes">Oui</option>
           <option value="no">Non</option>
         </select>
@@ -1664,7 +1664,7 @@ function App() {
           value={entry.score == null ? '' : String(entry.score)}
           onChange={(event) => onPatch({ score: event.target.value === '' ? null : Number(event.target.value) })}
         >
-          <option value="">Choisir une action</option>
+          <option value="">Choisir</option>
           {likertOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -1773,54 +1773,8 @@ function App() {
   }
 
 
-  function renderGoalInput(goal: Goal) {
-    if (goal.resultKind === 'tristate') {
-      return (
-        <select
-          value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
-          onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
-        >
-          <option value="">Choisir une action</option>
-          <option value="yes">Oui</option>
-          <option value="no">Non</option>
-        </select>
-      )
-    }
 
-    if (goal.resultKind === 'score') {
-      return (
-        <select
-          value={goal.score == null ? '' : String(goal.score)}
-          onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
-        >
-          <option value="">Choisir une action</option>
-          {likertOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-      )
-    }
 
-    if (goal.resultKind === 'checklist') {
-      return renderChecklistResponseEditor(goal.checklistTemplate, goal.checklist, (next) => updateGoal(goal.id, { checklist: next }))
-    }
-
-    if (goal.resultKind === 'numeric') {
-      return (
-        <div className="editor-stack">
-          <input
-            type="number"
-            value={goal.numericValue ?? ''}
-            onChange={(event) => updateGoal(goal.id, { numericValue: event.target.value === '' ? null : Number(event.target.value) })}
-            placeholder={goal.target?.unit ? `Valeur (${goal.target.unit})` : 'Valeur'}
-          />
-          {goal.target && <span className="editor-hint">objectif : {goal.target.value}{goal.target.unit ? ` ${goal.target.unit}` : ''}</span>}
-        </div>
-      )
-    }
-
-    return <textarea value={goal.note} onChange={(event) => updateGoal(goal.id, { note: event.target.value })} placeholder="Note..." />
-  }
 
   function openTrackerModal(module: ModuleKey, item?: TrackerItem) {
     if (item) {
@@ -2585,7 +2539,6 @@ function App() {
                             ⋮
                           </button>
                         </div>
-                        {renderGoalInput(goal)}
                       </article>
                     ))}
                   </div>
@@ -2627,7 +2580,6 @@ function App() {
                                     ⋮
                                   </button>
                                 </div>
-                                {renderGoalInput(goal)}
                               </article>
                             ))}
                           </div>
@@ -2648,7 +2600,6 @@ function App() {
                         </div>
                       </button>
                     </div>
-                    {renderGoalInput(goal)}
                   </article>
                 ))}
               </div>
