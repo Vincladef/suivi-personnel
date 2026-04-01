@@ -1081,14 +1081,14 @@ small,
   }
 
   .modal-backdrop {
-    padding: 0.45rem;
-    align-items: end;
+    padding: 0.75rem;
+    place-items: center;
   }
 
   .modal-card {
-    width: 100%;
-    max-height: calc(100vh - 0.45rem);
-    border-radius: 26px 26px 18px 18px;
+    width: min(100%, 640px);
+    max-height: calc(100vh - 1.5rem);
+    border-radius: 26px;
     padding: 1rem;
   }
 
