@@ -2177,3 +2177,39 @@ small,
   border-color: rgba(98, 108, 62, 0.2);
   background: linear-gradient(180deg, rgba(228, 234, 214, 0.98), rgba(240, 244, 231, 0.92));
 }
+
+
+.tracker-card.state-tone-failed-0 {
+  border-color: rgba(159, 64, 55, 0.14);
+  background: linear-gradient(180deg, rgba(250, 240, 237, 0.96), rgba(255, 248, 246, 0.9));
+}
+
+.tracker-card.state-tone-failed-1 {
+  border-color: rgba(168, 106, 76, 0.14);
+  background: linear-gradient(180deg, rgba(246, 239, 232, 0.96), rgba(252, 247, 243, 0.9));
+}
+
+.tracker-card.state-tone-neutral-2 {
+  border-color: rgba(154, 138, 78, 0.14);
+  background: linear-gradient(180deg, rgba(248, 245, 232, 0.96), rgba(253, 250, 241, 0.9));
+}
+
+.tracker-card.state-tone-success-3 {
+  border-color: rgba(120, 126, 78, 0.14);
+  background: linear-gradient(180deg, rgba(239, 242, 231, 0.96), rgba(247, 249, 242, 0.9));
+}
+
+.tracker-card.state-tone-success-4 {
+  border-color: rgba(98, 108, 62, 0.16);
+  background: linear-gradient(180deg, rgba(229, 235, 217, 0.98), rgba(241, 245, 232, 0.92));
+}
+
+.tracker-card.state-tone-success-3 .tracker-title,
+.goal-card.tone-success-3 .tracker-title {
+  color: #727847;
+}
+
+.tracker-card.state-tone-success-4 .tracker-title,
+.goal-card.tone-success-4 .tracker-title {
+  color: #586336;
+}

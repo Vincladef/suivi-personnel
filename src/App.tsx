@@ -414,7 +414,8 @@ function deriveLeafState(
     if (entry.checklist.length === 0 || entry.checklist.every((value) => value === 'unknown')) return 'unknown'
     const completedCount = entry.checklist.filter((value) => value === 'done' || value === 'excused').length
     const completionRatio = completedCount / entry.checklist.length
-    if (completionRatio === 1) return entry.checklist.some((value) => value === 'done') ? 'success' : 'excused'
+    if (completionRatio >= 1) return entry.checklist.some((value) => value === 'done') ? 'success' : 'excused'
+    if (completionRatio >= 0.75) return 'success'
     if (completionRatio >= 0.5) return 'excused'
     return 'failed'
   }
@@ -1630,11 +1631,12 @@ function App() {
 
     if (goal.resultKind === 'checklist') {
       if (!goal.checklist.length) return 'unknown'
-      const doneCount = goal.checklist.filter((item) => item === 'done').length
-      const failedCount = goal.checklist.filter((item) => item === 'failed').length
-      if (doneCount === goal.checklist.length) return 'success'
-      if (doneCount > 0 && failedCount < goal.checklist.length) return 'neutral'
-      if (failedCount > 0) return 'failed'
+      const completedCount = goal.checklist.filter((item) => item === 'done' || item === 'excused').length
+      const completionRatio = completedCount / goal.checklist.length
+      if (completionRatio >= 1) return 'success'
+      if (completionRatio >= 0.75) return 'success'
+      if (completionRatio >= 0.5) return 'neutral'
+      if (completionRatio > 0) return 'failed'
       return 'unknown'
     }
 
@@ -2770,7 +2772,7 @@ function App() {
                       {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         return (
-                          <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                          <article key={item.id} className={`tracker-card ${trackerToneClass(item, resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item))} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
                               <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                                 {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
@@ -2871,7 +2873,7 @@ function App() {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
                 return (
-                <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
+                <article key={item.id} className={`tracker-card ${trackerToneClass(item, performanceEntry)} ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
                     <div key={celebration.token} className="dopamine-burst" aria-hidden="true">
                       {celebrationGlyphsForLevel(celebration.level).map((glyph, index) => (
