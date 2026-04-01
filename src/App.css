@@ -1796,7 +1796,17 @@ small,
 
 .install-app-button {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
+  padding: 0.7rem 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(247, 244, 237, 0.88);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.install-app-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .install-app-hint {

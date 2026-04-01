@@ -1964,8 +1964,11 @@ function App() {
       return
     }
 
-    const isMobile = /android|iphone|ipad|ipod/i.test(window.navigator.userAgent)
-    if (isMobile) {
+    const isAndroid = /android/i.test(window.navigator.userAgent)
+    const isiPhone = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+    if (isAndroid) {
+      setInstallState('available')
+    } else if (isiPhone) {
       setInstallState('manual')
     }
 
@@ -2096,9 +2099,7 @@ function App() {
       return
     }
 
-    if (installState === 'manual') {
-      setInstallHintOpen((current) => !current)
-    }
+    setInstallHintOpen((current: boolean) => !current)
   }
 
   async function exportGoogleSheet() {
