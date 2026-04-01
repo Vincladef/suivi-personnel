@@ -225,6 +225,12 @@ textarea {
   padding-bottom: 0.9rem;
 }
 
+.impersonation-banner {
+  width: min(980px, 100%);
+  border: 1px solid rgba(183, 111, 39, 0.24);
+  background: linear-gradient(135deg, rgba(255, 246, 225, 0.98), rgba(255, 237, 206, 0.96));
+}
+
 .page-head h2 {
   font-size: clamp(1.2rem, 1.02rem + 0.9vw, 1.55rem);
   letter-spacing: -0.03em;

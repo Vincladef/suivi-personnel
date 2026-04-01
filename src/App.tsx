@@ -221,6 +221,11 @@ type AdminProfile = {
   createdAt: string | null
 }
 
+type ImpersonationTarget = {
+  uid: string
+  email: string
+}
+
 type GoalDraft = {
   title: string
   description: string
@@ -1045,6 +1050,9 @@ function App() {
   const [performanceValidatePulse, setPerformanceValidatePulse] = useState(0)
   const [adminProfiles, setAdminProfiles] = useState<AdminProfile[]>([])
   const [adminLoading, setAdminLoading] = useState(false)
+  const [impersonationTarget, setImpersonationTarget] = useState<ImpersonationTarget | null>(null)
+  const [impersonationLoading, setImpersonationLoading] = useState(false)
+  const [impersonationOpeningUid, setImpersonationOpeningUid] = useState<string | null>(null)
   const [selectedHabitDate, setSelectedHabitDate] = useState(today)
   const [performanceOccurrenceId, setPerformanceOccurrenceId] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -1075,6 +1083,7 @@ function App() {
   const [notificationSaving, setNotificationSaving] = useState(false)
   const [notificationTesting, setNotificationTesting] = useState(false)
   const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
+  const ownStateRef = useRef<AppState | null>(null)
 
   useEffect(() => {
     setupDebugHelpers()
@@ -1082,13 +1091,16 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (impersonationTarget) return
     localStorage.setItem(storageKey, JSON.stringify(state))
-  }, [state])
+  }, [impersonationTarget, state])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       setCurrentUser(user)
       setAuthError('')
+      setImpersonationTarget(null)
+      ownStateRef.current = null
 
       if (!user) {
         setRemoteReady(false)
@@ -1177,26 +1189,38 @@ function App() {
   useEffect(() => {
     if (!authReady || !currentUser || !remoteReady) return
 
+    const saveUid = impersonationTarget?.uid ?? currentUser.uid
+    const saveEmail = impersonationTarget?.email ?? currentUser.email ?? ''
+
     const timeout = window.setTimeout(() => {
-      void Promise.all([
-        setDoc(doc(firebaseDb, 'appStates', currentUser.uid), {
-          email: currentUser.email ?? '',
-          state,
-          updatedAt: serverTimestamp(),
-        }, { merge: true }),
-        setDoc(doc(firebaseDb, 'userProfiles', currentUser.uid), {
-          email: currentUser.email ?? '',
-          notificationSettings,
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        }, { merge: true }),
-      ]).catch((error) => {
+      void setDoc(doc(firebaseDb, 'appStates', saveUid), {
+        email: saveEmail,
+        state,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }).catch((error) => {
         setAuthError(error instanceof Error ? error.message : 'Impossible de synchroniser les donnees.')
       })
     }, 400)
 
     return () => window.clearTimeout(timeout)
-  }, [authReady, currentUser, remoteReady, state, notificationSettings])
+  }, [authReady, currentUser, impersonationTarget, remoteReady, state])
+
+  useEffect(() => {
+    if (!authReady || !currentUser || !remoteReady) return
+
+    const timeout = window.setTimeout(() => {
+      void setDoc(doc(firebaseDb, 'userProfiles', currentUser.uid), {
+        email: currentUser.email ?? '',
+        notificationSettings,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      }, { merge: true }).catch((error) => {
+        setAuthError(error instanceof Error ? error.message : 'Impossible de synchroniser les preferences.')
+      })
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [authReady, currentUser, notificationSettings, remoteReady])
 
   useEffect(() => {
     if (!celebration) return
@@ -1265,6 +1289,8 @@ function App() {
   })
   const monthLevelGoals = visibleGoals.filter((goal) => goal.horizon === 'month')
   const isAdmin = isAdminEmail(currentUser?.email)
+  const isImpersonating = Boolean(impersonationTarget)
+  const effectiveAccountLabel = impersonationTarget?.email || impersonationTarget?.uid || currentUser?.email || currentUser?.uid || ''
   const activeViewTitle = view === 'habits' ? 'Habitudes' : view === 'performances' ? 'Performances' : view === 'goals' ? 'Objectifs' : 'Admin'
   const trackerEditorItem = trackerEditor ? state.trackerItems.find((candidate) => candidate.id === trackerEditor.itemId) ?? null : null
   const goalEditorItem = goalEditor ? state.goals.find((candidate) => candidate.id === goalEditor.goalId) ?? null : null
@@ -2100,6 +2126,63 @@ function App() {
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   }
 
+  async function loadRemoteAppState(uid: string) {
+    const snapshot = await getDoc(doc(firebaseDb, 'appStates', uid))
+    if (!snapshot.exists()) return seedState()
+
+    const data = snapshot.data() as { state?: Partial<AppState> }
+    return data.state ? normalizeState(data.state) : seedState()
+  }
+
+  async function openImpersonatedAccount(profile: AdminProfile) {
+    if (!isAdmin || !currentUser) return
+    if (profile.id === currentUser.uid) {
+      exitImpersonation()
+      setView('habits')
+      return
+    }
+
+    setImpersonationLoading(true)
+    setImpersonationOpeningUid(profile.id)
+    setAuthError('')
+
+    try {
+      if (!ownStateRef.current) {
+        ownStateRef.current = state
+      }
+
+      const remoteState = await loadRemoteAppState(profile.id)
+      setState(remoteState)
+      setImpersonationTarget({ uid: profile.id, email: profile.email })
+      setView('habits')
+      setSidebarOpen(false)
+      setSelectedHabitDate(today)
+      setPerformanceOccurrenceId('')
+      closeTrackerEditor()
+      closeGoalEditor()
+      setModalView(null)
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Impossible d ouvrir ce compte.')
+    } finally {
+      setImpersonationLoading(false)
+      setImpersonationOpeningUid(null)
+    }
+  }
+
+  function exitImpersonation() {
+    if (!impersonationTarget) return
+    setImpersonationTarget(null)
+    setState(ownStateRef.current ?? seedState())
+    ownStateRef.current = null
+    setView('admin')
+    setSidebarOpen(false)
+    setSelectedHabitDate(today)
+    setPerformanceOccurrenceId('')
+    closeTrackerEditor()
+    closeGoalEditor()
+    setModalView(null)
+  }
+
   async function signInWithGoogle() {
     setAuthSubmitting(true)
     setAuthError('')
@@ -2344,6 +2427,16 @@ function App() {
               </div>
               <p className="muted-inline">Derniere synchronisation : {formatAdminDate(profile.updatedAt)}</p>
               <p className="muted-inline">Creation : {formatAdminDate(profile.createdAt)}</p>
+              <div className="surface-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => void openImpersonatedAccount(profile)}
+                  disabled={impersonationLoading}
+                >
+                  {profile.id === currentUser?.uid ? 'Compte courant' : impersonationLoading && impersonationOpeningUid === profile.id ? 'Ouverture...' : 'Ouvrir le compte'}
+                </button>
+              </div>
             </article>
           ))}
         </div>
@@ -2556,6 +2649,20 @@ function App() {
             <h2>{activeViewTitle}</h2>
           </div>
         </header>
+
+        {isImpersonating && impersonationTarget && (
+          <section className="panel surface-panel impersonation-banner" role="status" aria-live="polite">
+            <div className="surface-head">
+              <div>
+                <strong>Mode admin: vue du compte</strong>
+                <p className="muted-inline">Session reelle: {currentUser.email || currentUser.uid}</p>
+                <p className="muted-inline">Compte affiche: {effectiveAccountLabel}</p>
+                <p className="muted-inline">UID cible: {impersonationTarget.uid}</p>
+              </div>
+              <button type="button" className="ghost-button" onClick={exitImpersonation}>Quitter</button>
+            </div>
+          </section>
+        )}
 
         {sheetExportError && (
           <section className="panel surface-panel inline-feedback-panel">
