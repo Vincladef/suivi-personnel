@@ -2965,20 +2965,18 @@ function App() {
                     return (
                       <section key={week.start} className="goal-week-block minimal-week-block" onClick={() => weekGoals.length === 0 ? openGoalModal(week.start) : undefined}>
                         <div className="goal-week-head minimal-week-head">
-                          <div className="period-note-inline week-note-inline">
-                            <strong>{week.label}</strong>
-                            <button
-                              type="button"
-                              className={`ghost-icon subtle-note-button ${(state.goalPeriodNotes?.[`week:${week.start}`] ?? '').trim() ? 'has-note' : ''}`}
-                              aria-label={`Note ${week.label}`}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                openGoalNoteEditor(`week:${week.start}`, `Note · ${week.label}`)
-                              }}
-                            >
-                              ✎
-                            </button>
-                          </div>
+                          <strong>{week.label}</strong>
+                          <button
+                            type="button"
+                            className={`ghost-icon subtle-note-button ${(state.goalPeriodNotes?.[`week:${week.start}`] ?? '').trim() ? 'has-note' : ''}`}
+                            aria-label={`Note ${week.label}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              openGoalNoteEditor(`week:${week.start}`, `Note · ${week.label}`)
+                            }}
+                          >
+                            ✎
+                          </button>
                         </div>
                         {weekGoals.length === 0 && (
                           <div className="goal-empty-state subtle-empty-state">
