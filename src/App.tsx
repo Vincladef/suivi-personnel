@@ -996,6 +996,7 @@ function App() {
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null)
   const [trackerResponseDraft, setTrackerResponseDraft] = useState<TrackerEntry | null>(null)
   const [trackerActionMenuId, setTrackerActionMenuId] = useState<string | null>(null)
+  const trackerActionMenuRef = useRef<HTMLDivElement | null>(null)
   const [celebration, setCelebration] = useState<CelebrationState | null>(null)
   const trackerResponseDraftRef = useRef<TrackerEntry | null>(null)
   const checklistDragRef = useRef<{ scope: string; index: number } | null>(null)
@@ -1098,6 +1099,31 @@ function App() {
     const timeout = window.setTimeout(() => setCelebration(null), 2200)
     return () => window.clearTimeout(timeout)
   }, [celebration])
+
+  useEffect(() => {
+    if (!trackerActionMenuId) return
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!trackerActionMenuRef.current) return
+      const target = event.target
+      if (target instanceof Node && trackerActionMenuRef.current.contains(target)) return
+      setTrackerActionMenuId(null)
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setTrackerActionMenuId(null)
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [trackerActionMenuId])
 
   const habitItems = state.trackerItems.filter((item) => item.module === 'habits')
   const performanceItems = state.trackerItems.filter((item) => item.module === 'performances')
@@ -2108,15 +2134,22 @@ function App() {
                           type="button"
                           className="ghost-icon tracker-menu-button"
                           aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect()
+                            document.documentElement.style.setProperty('--tracker-menu-top', `${rect.bottom}px`)
+                            setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)
+                          }}
                         >
                           ⋮
                         </button>
                         {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
-                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
-                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
-                          </div>
+                          <>
+                            <button type="button" className="tracker-menu-overlay" aria-label="Fermer le menu d'actions" onClick={() => setTrackerActionMenuId(null)} />
+                            <div ref={trackerActionMenuRef} className="tracker-action-menu tracker-action-menu-floating" style={{ top: 'calc(var(--tracker-menu-top, 0px) + 0.35rem)' }}>
+                              <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('habits', item)}>Modifier</button>
+                              <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -2197,15 +2230,22 @@ function App() {
                           type="button"
                           className="ghost-icon tracker-menu-button"
                           aria-label={`Actions pour ${item.title}`}
-                          onClick={() => setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)}
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect()
+                            document.documentElement.style.setProperty('--tracker-menu-top', `${rect.bottom}px`)
+                            setTrackerActionMenuId(trackerActionMenuId === item.id ? null : item.id)
+                          }}
                         >
                           ⋮
                         </button>
                         {trackerActionMenuId === item.id && (
-                          <div className="tracker-action-menu">
-                            <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
-                            <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
-                          </div>
+                          <>
+                            <button type="button" className="tracker-menu-overlay" aria-label="Fermer le menu d'actions" onClick={() => setTrackerActionMenuId(null)} />
+                            <div ref={trackerActionMenuRef} className="tracker-action-menu tracker-action-menu-floating" style={{ top: 'calc(var(--tracker-menu-top, 0px) + 0.35rem)' }}>
+                              <button type="button" className="tracker-action-item" onClick={() => openTrackerModal('performances', item)}>Modifier</button>
+                              <button type="button" className="tracker-action-item danger" onClick={() => deleteTrackerItem(item.id)}>Supprimer</button>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
