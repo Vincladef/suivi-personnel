@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, MouseEvent } from 'react'
 import {
   collection,
   doc,
@@ -1002,6 +1002,7 @@ function App() {
   const [authSubmitting, setAuthSubmitting] = useState(false)
   const [sheetExportLoading, setSheetExportLoading] = useState(false)
   const [sheetExportError, setSheetExportError] = useState('')
+  const [performanceValidatePulse, setPerformanceValidatePulse] = useState(0)
   const [adminProfiles, setAdminProfiles] = useState<AdminProfile[]>([])
   const [adminLoading, setAdminLoading] = useState(false)
   const [selectedHabitDate, setSelectedHabitDate] = useState(today)
@@ -1468,7 +1469,66 @@ function App() {
   }
 
   function updateGoal(goalId: string, patch: Partial<Goal>) {
-    patchState({ goals: state.goals.map((goal) => goal.id === goalId ? { ...goal, ...patch } : goal) })
+    const nextGoals = state.goals.map((goal) => {
+      if (goal.id !== goalId) return goal
+      const nextGoal = { ...goal, ...patch }
+      if (nextGoal.resultKind === 'tristate') {
+        nextGoal.score = null
+        nextGoal.numericValue = null
+        nextGoal.note = ''
+      }
+      return nextGoal
+    })
+    patchState({ goals: nextGoals })
+  }
+
+  function goalStatusTone(goal: Goal): 'success' | 'neutral' | 'failed' | 'unknown' {
+    if (goal.resultKind === 'tristate') {
+      if (goal.status === 'success') return 'success'
+      if (goal.status === 'failed') return 'failed'
+      return 'unknown'
+    }
+
+    if (goal.resultKind === 'score') {
+      if (goal.score == null) return 'unknown'
+      if (goal.score >= 3) return 'success'
+      if (goal.score === 2) return 'neutral'
+      return 'failed'
+    }
+
+    if (goal.resultKind === 'numeric') {
+      if (goal.numericValue == null || !goal.target) return 'unknown'
+      const { mode, value } = goal.target
+      const current = goal.numericValue
+      const success = mode === 'atLeast' ? current >= value : mode === 'atMost' ? current <= value : current === value
+      if (success) return 'success'
+      const closeEnough = Math.abs(current - value) <= Math.max(1, Math.abs(value) * 0.15)
+      return closeEnough ? 'neutral' : 'failed'
+    }
+
+    if (goal.resultKind === 'checklist') {
+      if (!goal.checklist.length) return 'unknown'
+      const doneCount = goal.checklist.filter((item) => item === 'done').length
+      const failedCount = goal.checklist.filter((item) => item === 'failed').length
+      if (doneCount === goal.checklist.length) return 'success'
+      if (doneCount > 0 && failedCount < goal.checklist.length) return 'neutral'
+      if (failedCount > 0) return 'failed'
+      return 'unknown'
+    }
+
+    if (goal.resultKind === 'note') {
+      return goal.note.trim() ? 'neutral' : 'unknown'
+    }
+
+    return 'unknown'
+  }
+
+  function pulsePerformanceValidation(event: MouseEvent<HTMLButtonElement>) {
+    const button = event.currentTarget
+    button.classList.remove('is-pulsing')
+    void button.offsetWidth
+    button.classList.add('is-pulsing')
+    setPerformanceValidatePulse((value) => value + 1)
   }
 
   function stepHabitDate(direction: 'previous' | 'next') {
@@ -1570,7 +1630,7 @@ function App() {
           value={entry.state === 'success' ? 'yes' : entry.state === 'failed' ? 'no' : ''}
           onChange={(event) => onPatch({ state: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
         >
-          <option value="">Choisir</option>
+          <option value="">Choisir une action</option>
           <option value="yes">Oui</option>
           <option value="no">Non</option>
         </select>
@@ -1583,7 +1643,7 @@ function App() {
           value={entry.score == null ? '' : String(entry.score)}
           onChange={(event) => onPatch({ score: event.target.value === '' ? null : Number(event.target.value) })}
         >
-          <option value="">Choisir</option>
+          <option value="">Choisir une action</option>
           {likertOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -1654,7 +1714,7 @@ function App() {
           value={goal.status === 'success' ? 'yes' : goal.status === 'failed' ? 'no' : ''}
           onChange={(event) => updateGoal(goal.id, { status: event.target.value === 'yes' ? 'success' : event.target.value === 'no' ? 'failed' : 'unknown' })}
         >
-          <option value="">Choisir</option>
+          <option value="">Ajouter un sous-objectif</option>
           <option value="yes">Oui</option>
           <option value="no">Non</option>
         </select>
@@ -1667,7 +1727,7 @@ function App() {
           value={goal.score == null ? '' : String(goal.score)}
           onChange={(event) => updateGoal(goal.id, { score: event.target.value === '' ? null : Number(event.target.value) })}
         >
-          <option value="">Choisir</option>
+          <option value="">Ajouter un sous-objectif</option>
           {likertOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -2362,7 +2422,7 @@ function App() {
                       aria-label={`Renseigner ${item.title}`}
                     >
                       <div className="tracker-open-copy">
-                        <strong>{item.title}</strong>
+                        <strong className={`tracker-title performance-title state-text-${performanceEntry.state}`}>{item.title}</strong>
                         {entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score) && (
                           <div className="tracker-meta">
                             <span className={`pill ${stateClassName(performanceEntry.state)}`}>{entryLabelForInput(item.inputKind, performanceEntry.state, performanceEntry.score)}</span>
@@ -2405,7 +2465,7 @@ function App() {
             {performanceItems.length > 0 && (
               <div className="performance-footer-actions-wrap">
                 <div className="performance-footer-actions">
-                  <button type="button" className="primary-button performance-validate-button" onClick={commitPerformanceIteration}>Valider</button>
+                  <button type="button" className={`primary-button performance-validate-button ${performanceValidatePulse ? "pulse-ready" : ""}`} onClick={(event) => { pulsePerformanceValidation(event); commitPerformanceIteration() }}>Valider</button>
                 </div>
                 {performanceRestItems.length > 0 && (
                   <div className="global-rest-note align-center">
@@ -2442,7 +2502,7 @@ function App() {
                 {monthLevelGoals.length > 0 && (
                   <div className="goal-list">
                     {monthLevelGoals.map((goal) => (
-                      <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
+                      <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
                         <div className="goal-head">
                           <div>
                             <strong>{goal.title}</strong>
@@ -2470,10 +2530,16 @@ function App() {
                         <div className="goal-week-head minimal-week-head">
                           <strong>{week.label}</strong>
                         </div>
+                        {weekGoals.length === 0 && (
+                          <div className="goal-empty-state">
+                            <span>Aucun objectif cette semaine</span>
+                            <small>Ajoute ton premier objectif</small>
+                          </div>
+                        )}
                         {weekGoals.length > 0 && (
                           <div className="goal-list compact-goal-list">
                             {weekGoals.map((goal) => (
-                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card`}>
+                              <article key={goal.id} className={`goal-card horizon-${goal.horizon} compact-goal-card tone-${goalStatusTone(goal)}`}>
                                 <div className="goal-head compact-goal-head">
                                   <div>
                                     <strong>{goal.title}</strong>
@@ -2503,7 +2569,7 @@ function App() {
             ) : (
               <div className="goal-year-layout minimal-goal-layout">
                 {visibleGoals.filter((goal) => goal.horizon === 'year').map((goal) => (
-                  <article key={goal.id} className={`goal-card horizon-${goal.horizon}`}>
+                  <article key={goal.id} className={`goal-card horizon-${goal.horizon} tone-${goalStatusTone(goal)}`}>
                     <div className="goal-head">
                       <div>
                         <strong>{goal.title}</strong>

@@ -95,10 +95,10 @@ textarea {
   left: 0;
   bottom: 0;
   width: min(280px, 84vw);
-  padding: 1rem;
+  padding: 1.15rem;
   display: grid;
   align-content: start;
-  gap: 1rem;
+  gap: 1.15rem;
   background: linear-gradient(180deg, rgba(26, 33, 43, 0.98), rgba(42, 52, 66, 0.96));
   color: #f7f4ed;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -174,7 +174,8 @@ textarea {
 }
 
 .nav-link {
-  padding: 0.9rem 1rem;
+  min-height: 50px;
+  padding: 0.95rem 1rem;
   text-align: left;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(247, 244, 237, 0.82);
@@ -275,6 +276,17 @@ textarea {
   padding: 1.25rem;
 }
 
+.sidebar-foot {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.sidebar-foot .ghost-button,
+.sidebar-foot .export-sheet-button {
+  min-height: 48px;
+}
+
 .surface-panel,
 .goal-card,
 .empty-panel {
@@ -286,9 +298,10 @@ textarea {
 
 .tracker-card {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.78rem;
   position: relative;
   overflow: visible;
+  transition: transform 0.14s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 .surface-panel {
@@ -460,6 +473,10 @@ small,
   color: #f8f6f1;
   font-size: 1.55rem;
   box-shadow: 0 16px 34px rgba(29, 36, 48, 0.2);
+}
+
+.tracker-card:active {
+  transform: scale(0.985);
 }
 
 .ghost-button,
@@ -865,6 +882,16 @@ small,
 }
 
 @media (max-width: 720px) {
+  .surface-head > .fab-button {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 25;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+
   .main {
     padding: 0.78rem;
   }
@@ -1008,6 +1035,12 @@ small,
 .tracker-title {
   display: block;
   line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.performance-title {
+  color: #1b2638;
 }
 
 .tracker-title.state-text-success {
@@ -1229,6 +1262,10 @@ small,
   min-width: min(320px, 100%);
 }
 
+.performance-validate-button.is-pulsing {
+  animation: validatePulse 220ms ease-out;
+}
+
 .global-rest-note {
   display: flex;
   flex-wrap: wrap;
@@ -1321,11 +1358,57 @@ small,
   border-radius: 16px;
 }
 
+.goal-empty-state {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.05rem 0.15rem;
+  color: #6a7485;
+}
+
+.goal-empty-state span {
+  font-weight: 700;
+  color: #425165;
+}
+
+.goal-card.tone-success {
+  border-color: rgba(61, 138, 92, 0.22);
+}
+
+.goal-card.tone-success strong {
+  color: #216949;
+}
+
+.goal-card.tone-neutral {
+  border-color: rgba(162, 141, 80, 0.22);
+}
+
+.goal-card.tone-neutral strong {
+  color: #7c6220;
+}
+
+.goal-card.tone-failed {
+  border-color: rgba(171, 77, 63, 0.22);
+}
+
+.goal-card.tone-failed strong {
+  color: #a1382d;
+}
+
 .compact-goal-head {
   margin-bottom: 0.2rem;
 }
 
 @media (max-width: 720px) {
+  .surface-head > .fab-button {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 25;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+
   .date-nav-controls {
     width: 100%;
     grid-template-columns: 36px minmax(0, 1fr) 36px;
@@ -1619,4 +1702,10 @@ small,
     opacity: 0;
     transform: translateY(-12px) scale(1.15);
   }
+}
+
+@keyframes validatePulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }
