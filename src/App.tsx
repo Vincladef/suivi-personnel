@@ -1724,6 +1724,7 @@ function App() {
 
   function trackerHistory(itemId: string, module: ModuleKey) {
     const occurrences = module === 'habits' ? habitOccurrences : performanceOccurrences
+    const item = state.trackerItems.find((candidate) => candidate.id === itemId)
     return occurrences
       .filter((occurrence) => {
         const entry = occurrence.entries[itemId]
@@ -1736,17 +1737,27 @@ function App() {
         return false
       })
       .slice(0, 7)
-      .map((occurrence) => ({
-        occurrenceId: occurrence.id,
-        date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
-        label: module === 'performances'
-          ? `${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(occurrence.createdAt))}\n${new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(new Date(occurrence.createdAt)).replace('.', '').toUpperCase()}`
-          : undefined,
-        state: occurrence.entries[itemId]?.state ?? 'unknown',
-      }))
+      .map((occurrence) => {
+        const entry = occurrence.entries[itemId]
+        return {
+          occurrenceId: occurrence.id,
+          date: module === 'habits' ? (occurrence.date ?? '') : occurrence.id,
+          label: module === 'performances'
+            ? `${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(occurrence.createdAt))}\n${new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(new Date(occurrence.createdAt)).replace('.', '').toUpperCase()}`
+            : undefined,
+          state: historyDisplayState(item, entry),
+        }
+      })
   }
 
-  function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<TrackerSubEntry>) {
+  
+function historyDisplayState(item: TrackerItem | undefined, entry: TrackerEntry | undefined): EntryState {
+  if (!item || !entry) return 'unknown'
+  const toneState = displayToneState(item.inputKind, entry, item.target)
+  return toneState
+}
+
+function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<TrackerSubEntry>) {
     if (!trackerResponseDraft) return
     const current = trackerResponseDraft.subEntries[subItem.id] ?? emptySubEntry(subItem)
     const next = { ...current, ...patch }
