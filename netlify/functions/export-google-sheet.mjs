@@ -244,6 +244,113 @@ async function batchUpdateSpreadsheetValues(spreadsheetId, data, accessToken) {
   return response.json()
 }
 
+async function styleSpreadsheet(spreadsheetId, accessToken) {
+  const response = await fetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.86, green: 0.93, blue: 0.88 },
+                textFormat: { bold: true, foregroundColor: { red: 0.18, green: 0.28, blue: 0.2 } },
+                horizontalAlignment: 'CENTER',
+              },
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: 1, startRowIndex: 0, endRowIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.88, green: 0.91, blue: 0.98 },
+                textFormat: { bold: true, foregroundColor: { red: 0.2, green: 0.25, blue: 0.42 } },
+                horizontalAlignment: 'CENTER',
+              },
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: 2, startRowIndex: 0, endRowIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.98, green: 0.91, blue: 0.84 },
+                textFormat: { bold: true, foregroundColor: { red: 0.39, green: 0.24, blue: 0.16 } },
+                horizontalAlignment: 'CENTER',
+              },
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+          },
+        },
+        {
+          updateSheetProperties: {
+            properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
+            fields: 'gridProperties.frozenRowCount',
+          },
+        },
+        {
+          updateSheetProperties: {
+            properties: { sheetId: 1, gridProperties: { frozenRowCount: 1 } },
+            fields: 'gridProperties.frozenRowCount',
+          },
+        },
+        {
+          updateSheetProperties: {
+            properties: { sheetId: 2, gridProperties: { frozenRowCount: 1 } },
+            fields: 'gridProperties.frozenRowCount',
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: {
+              sheetId: 0,
+              dimension: 'COLUMNS',
+              startIndex: 0,
+              endIndex: 40,
+            },
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: {
+              sheetId: 1,
+              dimension: 'COLUMNS',
+              startIndex: 0,
+              endIndex: 40,
+            },
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: {
+              sheetId: 2,
+              dimension: 'COLUMNS',
+              startIndex: 0,
+              endIndex: 20,
+            },
+          },
+        },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Spreadsheet styling failed (${response.status}): ${await response.text()}`)
+  }
+
+  return response.json()
+}
+
 async function shareSpreadsheet(spreadsheetId, email, accessToken) {
   if (!email) return null
 
@@ -479,6 +586,7 @@ export default async function handler(request) {
 
     if (existingSheet?.spreadsheetId && existingSheet?.url) {
       await batchUpdateSpreadsheetValues(existingSheet.spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
+      await styleSpreadsheet(existingSheet.spreadsheetId, googleToken.access_token)
       await shareSpreadsheet(existingSheet.spreadsheetId, authUser.email, googleToken.access_token)
 
       await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
@@ -506,6 +614,7 @@ export default async function handler(request) {
     const url = sheetUrlFromId(spreadsheetId)
 
     await batchUpdateSpreadsheetValues(spreadsheetId, buildSpreadsheetPayload(state), googleToken.access_token)
+    await styleSpreadsheet(spreadsheetId, googleToken.access_token)
     await shareSpreadsheet(spreadsheetId, authUser.email, googleToken.access_token)
 
     await firestorePatchDocument(projectId, `userProfiles/${authUser.uid}`, {
