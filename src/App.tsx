@@ -449,7 +449,7 @@ function stateClassName(state: EntryState) {
 }
 
 
-function displayToneState(inputKind: InputKind, entry: { state: EntryState; score: number | null; checklist: ChecklistStatus[]; numericValue: number | null; note: string }) {
+function displayToneState(inputKind: InputKind, entry: { state: EntryState; score: number | null; checklist: ChecklistStatus[]; numericValue: number | null; note: string }, target?: TargetConfig | null) {
   if (inputKind === 'score') {
     if (entry.score == null) return 'unknown'
     if (entry.score >= 3) return 'success'
@@ -465,7 +465,11 @@ function displayToneState(inputKind: InputKind, entry: { state: EntryState; scor
     return 'failed'
   }
   if (inputKind === 'numeric') {
-    return entry.state
+    const tone = numericTone(target ?? null, entry.numericValue)
+    if (tone === 'success-4' || tone === 'success-3') return 'success'
+    if (tone === 'neutral-2') return 'excused'
+    if (tone === 'failed-0') return 'failed'
+    return 'unknown'
   }
   if (inputKind === 'note') {
     return entry.note.trim() ? 'success' : 'unknown'
@@ -2829,7 +2833,7 @@ function App() {
                       {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
-                        const habitToneState = displayToneState(item.inputKind, habitEntry)
+                        const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
                         return (
                           <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                             {isCelebrating && (
@@ -2931,7 +2935,7 @@ function App() {
               {visiblePerformanceItems.map((item) => {
                 const isCelebrating = celebration?.module === 'performances' && celebration.itemId === item.id
                 const performanceEntry = resolvedPerformanceOccurrence.entries[item.id] ?? emptyEntry(item)
-                const performanceToneState = displayToneState(item.inputKind, performanceEntry)
+                const performanceToneState = displayToneState(item.inputKind, performanceEntry, item.target)
                 return (
                 <article key={item.id} className={`tracker-card ${isCelebrating ? `is-celebrating celebration-level-${celebration.level}` : ''}`}>
                   {isCelebrating && (
