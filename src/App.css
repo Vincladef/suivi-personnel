@@ -1788,3 +1788,19 @@ small,
   padding: 0;
   box-shadow: none;
 }
+
+.install-app-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.install-app-button {
+  width: 100%;
+  min-height: 48px;
+}
+
+.install-app-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}

@@ -27,6 +27,11 @@ declare global {
     copySuiviLogs?: () => Promise<void>
     clearSuiviLogs?: () => void
   }
+
+  interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+  }
 }
 
 type ModuleKey = 'habits' | 'performances'
@@ -171,6 +176,8 @@ type TrackerEditorState = {
 type GoalEditorState = {
   goalId: string
 }
+
+type InstallState = 'hidden' | 'available' | 'manual' | 'installed'
 
 type HistoryItem = {
   occurrenceId: string
@@ -1037,6 +1044,9 @@ function App() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [goalViewMode, setGoalViewMode] = useState<'month' | 'year'>('month')
   const [goalPeriodDate, setGoalPeriodDate] = useState(startOfMonth(today))
+  const [installState, setInstallState] = useState<InstallState>('hidden')
+  const [installHintOpen, setInstallHintOpen] = useState(false)
+  const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     setupDebugHelpers()
@@ -1948,6 +1958,40 @@ function App() {
     closeTrackerEditor()
   }
   useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+    if (isStandalone) {
+      setInstallState('installed')
+      return
+    }
+
+    const isMobile = /android|iphone|ipad|ipod/i.test(window.navigator.userAgent)
+    const isiOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+    if (isMobile) {
+      setInstallState(isiOS ? 'manual' : 'hidden')
+    }
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault()
+      installPromptRef.current = event as BeforeInstallPromptEvent
+      setInstallState('available')
+    }
+
+    const handleInstalled = () => {
+      installPromptRef.current = null
+      setInstallState('installed')
+      setInstallHintOpen(false)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!isAdmin && view === 'admin') {
       setView('habits')
     }
@@ -2037,6 +2081,24 @@ function App() {
       }
     } finally {
       setAuthSubmitting(false)
+    }
+  }
+
+  async function triggerInstallApp() {
+    if (installState === 'installed') return
+
+    if (installPromptRef.current) {
+      await installPromptRef.current.prompt()
+      const choice = await installPromptRef.current.userChoice
+      if (choice.outcome === 'accepted') {
+        setInstallState('installed')
+      }
+      installPromptRef.current = null
+      return
+    }
+
+    if (installState === 'manual') {
+      setInstallHintOpen((current) => !current)
     }
   }
 
@@ -2262,6 +2324,16 @@ function App() {
           {isAdmin && <button type="button" className={`nav-link ${view === 'admin' ? 'active' : ''}`} onClick={() => { setView('admin'); setSidebarOpen(false) }}>Admin</button>}
         </nav>
         <div className="sidebar-foot">
+          {installState !== 'hidden' && (
+            <div className="install-app-block">
+              <button type="button" className="ghost-button install-app-button" onClick={() => void triggerInstallApp()}>
+                {installState === 'installed' ? 'App installee' : 'Ajouter a l ecran d accueil'}
+              </button>
+              {installHintOpen && installState === 'manual' && (
+                <p className="muted-inline install-app-hint">Sur iPhone : partage Safari puis Ajouter a l ecran d accueil.</p>
+              )}
+            </div>
+          )}
           <button type="button" className="ghost-button export-sheet-button" onClick={() => void exportGoogleSheet()} disabled={sheetExportLoading}>
             {sheetExportLoading ? 'Ouverture...' : 'Google Sheets'}
           </button>
