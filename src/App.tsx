@@ -3080,7 +3080,13 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                                 items={trackerHistory(item.id, 'habits')}
                                 selectedDate={selectedHabitDate}
                                 onSelect={(date) => {
-                                  setSelectedHabitDate(date)
+                                  const occurrence = buildHabitOccurrenceForDate(
+                                    date,
+                                    state.trackerItems,
+                                    state.occurrences,
+                                    habitOccurrences.find((candidate) => candidate.date === date),
+                                  )
+                                  openTrackerEditor('habits', item.id, occurrence.id, date)
                                 }}
                               />
                             </div>
