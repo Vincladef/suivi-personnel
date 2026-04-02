@@ -375,7 +375,7 @@ const seedGoals: Goal[] = []
 function emptySubEntry(item: TrackerSubItem): TrackerSubEntry {
   return {
     state: 'unknown',
-    score: item.inputKind === 'rating10' ? 5 : null,
+    score: null,
     checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map(() => 'unknown' as ChecklistStatus) : [],
     numericValue: null,
     note: '',
@@ -385,7 +385,7 @@ function emptySubEntry(item: TrackerSubItem): TrackerSubEntry {
 function emptyEntry(item: TrackerItem): TrackerEntry {
   return {
     state: 'unknown',
-    score: item.inputKind === 'rating10' ? 5 : null,
+    score: null,
     checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map(() => 'unknown' as ChecklistStatus) : [],
     numericValue: null,
     note: '',
@@ -2341,12 +2341,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
 
     if (!occurrence) return
 
-    const initialEntry = cloneEntry(occurrence.entries[itemId])
-    if (item.inputKind === 'rating10' && initialEntry.score == null) {
-      initialEntry.score = 5
-      initialEntry.state = deriveState(item, initialEntry)
-    }
-    updateTrackerResponseDraft(initialEntry)
+    updateTrackerResponseDraft(cloneEntry(occurrence.entries[itemId]))
     setTrackerEditor({ module, itemId, occurrenceId, date })
     writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId, date })
   }
@@ -2387,9 +2382,10 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
   function saveTrackerEditor() {
     const draft = trackerResponseDraftRef.current
     if (!trackerEditor || !trackerEditorItem || !trackerEditorOccurrence || !draft) return
+    const effectiveScore = trackerEditorItem.inputKind === 'rating10' && draft.score == null ? 5 : draft.score
     const result = updateTrackerEntry(trackerEditorOccurrence.id, trackerEditorItem.id, {
       state: trackerEditorItem.inputKind === 'checklist' && draft.checklist.every((value) => value === 'unknown') ? 'failed' : draft.state,
-      score: draft.score,
+      score: effectiveScore,
       checklist: draft.checklist,
       numericValue: draft.numericValue,
       note: draft.note,
