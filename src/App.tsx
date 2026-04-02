@@ -3006,24 +3006,26 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     </div>
                     <section
                       key={category}
-                      draggable
-                      onDragStart={() => setDraggedCategoryName(category)}
-                      onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
-                      onDragEnter={() => {
-                        setDragOverCategoryName(category)
-                      }}
-                      onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setDragOverCategoryName(category)
-                      }}
-                      onDrop={() => {
-                        handleHabitCategoryReorder(draggedCategoryName, category, 'before')
-                        setDragOverCategoryName(null)
-                      }}
-                      className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
+                      className={`tracker-category-section ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
                     >
-                      <header className={`tracker-category-head ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}>
+                      <header
+                        draggable
+                        onDragStart={() => setDraggedCategoryName(category)}
+                        onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
+                        onDragEnter={() => {
+                          setDragOverCategoryName(category)
+                        }}
+                        onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
+                        onDragOver={(event) => {
+                          event.preventDefault()
+                          setDragOverCategoryName(category)
+                        }}
+                        onDrop={() => {
+                          handleHabitCategoryReorder(draggedCategoryName, category, 'before')
+                          setDragOverCategoryName(null)
+                        }}
+                        className={`tracker-category-head is-draggable ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}
+                      >
                         <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
                         <span className="tracker-category-label">{category}</span>
                         <span className="tracker-category-drop-hint">Glisser pour reordonner</span>
