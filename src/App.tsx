@@ -3002,8 +3002,10 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     }}
                     className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
                   >
-                    <header className="tracker-category-head">
+                    <header className={`tracker-category-head ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}>
+                      <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
                       <span className="tracker-category-label">{category}</span>
+                      <span className="tracker-category-drop-hint">Glisser pour reordonner</span>
                     </header>
                     <div className="tracker-category-list">
                       {grouped[category].map((item) => {

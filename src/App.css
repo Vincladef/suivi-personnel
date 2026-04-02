@@ -396,10 +396,29 @@ textarea {
 .tracker-category-section {
   display: grid;
   gap: 0.35rem;
+  padding: 0.3rem;
+  border-radius: 18px;
+  transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .tracker-category-head {
-  padding: 0.1rem 0.15rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 14px;
+  background: rgba(248, 250, 255, 0.9);
+  border: 1px dashed rgba(122, 134, 151, 0.28);
+}
+
+.tracker-category-drag-handle {
+  font-size: 1rem;
+  color: #5d6f8b;
+}
+
+.tracker-category-head.is-active-drag-handle {
+  background: rgba(229, 236, 248, 0.95);
+  border-color: rgba(40, 64, 125, 0.34);
 }
 
 .tracker-category-label {
@@ -408,6 +427,12 @@ textarea {
   letter-spacing: 0.16em;
   font-weight: 800;
   color: #8b95a6;
+}
+
+.tracker-category-drop-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #7a8697;
 }
 
 .tracker-category-list {
@@ -2288,8 +2313,10 @@ small,
 }
 
 .is-drop-target {
-  outline: 1px dashed rgba(40, 64, 125, 0.26);
+  outline: 2px dashed rgba(40, 64, 125, 0.45);
   outline-offset: 3px;
+  background: rgba(226, 234, 247, 0.72);
+  box-shadow: 0 0 0 4px rgba(40, 64, 125, 0.08);
 }
 
 
