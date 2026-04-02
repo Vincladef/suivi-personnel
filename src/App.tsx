@@ -2874,10 +2874,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
           <option value="score">Echelle de Likert (0-4)</option>
           <option value="tristate">Oui / Non</option>
           <option value="rating10">Note /10</option>
-          <option value="rating10">Note /10</option>
-                    <option value="rating10">Note /10</option>
-                          <option value="rating10">Note /10</option>
-                    <option value="checklist">Checklist</option>
+          <option value="checklist">Checklist</option>
           <option value="numeric">Valeur chiffree</option>
           <option value="note">Note libre</option>
         </select>
@@ -3547,6 +3544,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                   <select value={goalDraft.resultKind} onChange={(event) => setGoalDraft({ ...goalDraft, resultKind: event.target.value as InputKind })}>
                     <option value="score">Echelle de Likert (0-4)</option>
                     <option value="tristate">Oui / Non</option>
+                    <option value="rating10">Note /10</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
@@ -3590,6 +3588,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         <select value={subItem.inputKind} onChange={(event) => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.map((candidate) => candidate.id === subItem.id ? { ...candidate, inputKind: event.target.value as InputKind } : candidate) })}>
                           <option value="score">Echelle de Likert (0-4)</option>
                           <option value="tristate">Oui / Non</option>
+                          <option value="rating10">Note /10</option>
                           <option value="checklist">Checklist</option>
                           <option value="numeric">Valeur chiffree</option>
                           <option value="note">Note libre</option>
@@ -3654,6 +3653,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
                     <option value="score">Echelle de Likert (0-4)</option>
                     <option value="tristate">Oui / Non</option>
+                    <option value="rating10">Note /10</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
