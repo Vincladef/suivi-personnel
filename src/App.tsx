@@ -3012,7 +3012,6 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     className="tracker-category-section"
                   >
                     <header className="tracker-category-head">
-                      <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
                       <span className="tracker-category-label">{category}</span>
                       <div className="tracker-category-order-actions">
                         <button
