@@ -1752,6 +1752,18 @@ function App() {
       })
 
       patchState({ trackerItems: nextItems, occurrences: nextOccurrences, lastTrackerCategory: normalizedCategory || state.lastTrackerCategory })
+      if (trackerDraft.module === 'performances') {
+        const nextFilter = normalizedCategory || ''
+        setPerformanceCategoryFilter(nextFilter)
+        patchState({
+          trackerItems: nextItems,
+          occurrences: nextOccurrences,
+          lastTrackerCategory: normalizedCategory || state.lastTrackerCategory,
+          lastPerformanceCategoryFilter: nextFilter,
+        })
+      } else {
+        patchState({ trackerItems: nextItems, occurrences: nextOccurrences, lastTrackerCategory: normalizedCategory || state.lastTrackerCategory })
+      }
       writeDebugLog('tracker-item-added', { module: trackerDraft.module, title: trackerDraft.title, inputKind: trackerDraft.inputKind, priority: trackerDraft.priority })
     }
 
