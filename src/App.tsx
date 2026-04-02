@@ -478,6 +478,7 @@ function displayToneState(inputKind: InputKind, entry: { state: EntryState; scor
     return 'failed'
   }
   if (inputKind === 'checklist') {
+    if (entry.state === 'failed' && entry.checklist.every((value) => value === 'unknown')) return 'failed'
     if (!entry.checklist.length || entry.checklist.every((value) => value === 'unknown')) return 'unknown'
     const completedCount = entry.checklist.filter((value) => value === 'done' || value === 'excused').length
     const ratio = completedCount / entry.checklist.length
@@ -518,7 +519,8 @@ function numericTone(target: TargetConfig | null, value: number | null): 'failed
   return 'failed-0'
 }
 
-function checklistTone(checklist: ChecklistStatus[]): 'failed-0' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
+function checklistTone(checklist: ChecklistStatus[], forcedState?: EntryState): 'failed-0' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
+  if (forcedState === 'failed' && checklist.every((value) => value === 'unknown')) return 'failed-0'
   if (!checklist.length || checklist.every((value) => value === 'unknown')) return 'unknown'
   const completedCount = checklist.filter((value) => value === 'done' || value === 'excused').length
   const ratio = completedCount / checklist.length
@@ -539,14 +541,14 @@ function scoreTone(score: number | null | undefined): 'failed-0' | 'failed-1' | 
 
 function trackerToneClass(item: TrackerItem, entry: TrackerEntry) {
   if (item.inputKind === 'score') return `state-tone-${scoreTone(entry.score)}`
-  if (item.inputKind === 'checklist') return `state-tone-${checklistTone(entry.checklist)}`
+  if (item.inputKind === 'checklist') return `state-tone-${checklistTone(entry.checklist, entry.state)}`
   if (item.inputKind === 'numeric') return `state-tone-${numericTone(item.target, entry.numericValue)}`
   return `state-tone-${entry.state === 'failed' ? 'failed-0' : entry.state === 'excused' ? 'neutral-2' : entry.state === 'success' ? 'success-4' : 'unknown'}`
 }
 
 function goalToneClass(goal: Goal) {
   if (goal.resultKind === 'score') return `tone-${scoreTone(goal.score)}`
-  if (goal.resultKind === 'checklist') return `tone-${checklistTone(goal.checklist)}`
+  if (goal.resultKind === 'checklist') return `tone-${checklistTone(goal.checklist, goal.status)}`
   if (goal.resultKind === 'numeric') return `tone-${numericTone(goal.target, goal.numericValue)}`
   return `tone-${goal.status === 'failed' ? 'failed-0' : goal.status === 'excused' ? 'neutral-2' : goal.status === 'success' ? 'success-4' : 'unknown'}`
 }
@@ -1863,13 +1865,13 @@ function App() {
     }
 
     if (goal.resultKind === 'checklist') {
+      if (goal.status === 'failed' && goal.checklist.every((item) => item === 'unknown')) return 'failed'
       if (!goal.checklist.length) return 'unknown'
       const completedCount = goal.checklist.filter((item) => item === 'done' || item === 'excused').length
       const completionRatio = completedCount / goal.checklist.length
       if (completionRatio >= 0.75) return 'success'
       if (completionRatio >= 0.5) return 'neutral'
-      if (completionRatio > 0) return 'failed'
-      return 'unknown'
+      return 'failed'
     }
 
     if (goal.resultKind === 'note') {
