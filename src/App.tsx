@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, MouseEvent } from 'react'
 import {
   collection,
@@ -1426,10 +1426,8 @@ function App() {
   const sortedGoals = sortGoals(state.goals)
   const [draggedTrackerId, setDraggedTrackerId] = useState<string | null>(null)
   const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null)
-  const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(null)
   const [dragOverTrackerId, setDragOverTrackerId] = useState<string | null>(null)
   const [dragOverGoalId, setDragOverGoalId] = useState<string | null>(null)
-  const [dragOverCategoryName, setDragOverCategoryName] = useState<string | null>(null)
   const dragHoverLockRef = useRef<string>('')
 
   function reorderTrackersWithinCategory(module: ModuleKey, category: string, draggedId: string, targetId: string) {
@@ -1471,14 +1469,20 @@ function App() {
     patchState({ trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
   }
 
-  function handleHabitCategoryReorder(draggedCategory: string | null, targetCategory: string, position: 'before' | 'after' = 'before') {
-    if (!draggedCategory || draggedCategory === targetCategory) return
-    const lockKey = `category-habits-${draggedCategory}-${targetCategory}-${position}`
-    if (dragHoverLockRef.current === lockKey) return
-    dragHoverLockRef.current = lockKey
-    reorderHabitCategories(draggedCategory, targetCategory, position)
-    setDraggedCategoryName(draggedCategory)
-    setDragOverCategoryName(`${position}:${targetCategory}`)
+  function moveHabitCategory(category: string, direction: 'up' | 'down') {
+    const grouped = visibleHabitItems.reduce<Record<string, TrackerItem[]>>((acc, item) => {
+      const key = (item.category || '').trim() || 'Autres'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(item)
+      return acc
+    }, {})
+    const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+    const index = categoryNames.indexOf(category)
+    if (index < 0) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    const targetCategory = categoryNames[targetIndex]
+    if (!targetCategory) return
+    reorderHabitCategories(category, targetCategory, direction === 'up' ? 'before' : 'after')
   }
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
@@ -2988,50 +2992,36 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
 
                 return categoryNames.map((category, index) => (
-                  <Fragment key={category}>
-                    <div
-                      className={`tracker-category-drop-zone ${dragOverCategoryName === `before:${category}` ? 'is-drop-target' : ''}`}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setDragOverCategoryName(`before:${category}`)
-                      }}
-                      onDrop={() => {
-                        if (!draggedCategoryName || draggedCategoryName === category) return
-                        const targetCategory = categoryNames[Math.max(0, index - 1)] ?? category
-                        handleHabitCategoryReorder(draggedCategoryName, targetCategory)
-                        setDragOverCategoryName(null)
-                      }}
-                    >
-                      <span>Deposer ici</span>
-                    </div>
-                    <section
-                      key={category}
-                      className={`tracker-category-section ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
-                    >
-                      <header
-                        draggable
-                        onDragStart={() => setDraggedCategoryName(category)}
-                        onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
-                        onDragEnter={() => {
-                          setDragOverCategoryName(category)
-                        }}
-                        onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
-                        onDragOver={(event) => {
-                          event.preventDefault()
-                          setDragOverCategoryName(category)
-                        }}
-                        onDrop={() => {
-                          handleHabitCategoryReorder(draggedCategoryName, category, 'before')
-                          setDragOverCategoryName(null)
-                        }}
-                        className={`tracker-category-head is-draggable ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}
-                      >
-                        <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
-                        <span className="tracker-category-label">{category}</span>
-                        <span className="tracker-category-drop-hint">Glisser pour reordonner</span>
-                      </header>
-                      <div className="tracker-category-list">
-                        {grouped[category].map((item) => {
+                  <section
+                    key={category}
+                    className="tracker-category-section"
+                  >
+                    <header className="tracker-category-head">
+                      <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
+                      <span className="tracker-category-label">{category}</span>
+                      <div className="tracker-category-order-actions">
+                        <button
+                          type="button"
+                          className="ghost-icon compact-icon-action"
+                          aria-label={`Monter la categorie ${category}`}
+                          onClick={() => moveHabitCategory(category, 'up')}
+                          disabled={index === 0}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-icon compact-icon-action"
+                          aria-label={`Descendre la categorie ${category}`}
+                          onClick={() => moveHabitCategory(category, 'down')}
+                          disabled={index === categoryNames.length - 1}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </header>
+                    <div className="tracker-category-list">
+                      {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
@@ -3074,37 +3064,15 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                                 items={trackerHistory(item.id, 'habits')}
                                 selectedDate={selectedHabitDate}
                                 onSelect={(date) => {
-                                  const occurrence = habitOccurrences.find((candidate) => candidate.date === date)
-                                  writeDebugLog('habit-history-select', { from: selectedHabitDate, to: date, occurrenceId: occurrence?.id })
                                   setSelectedHabitDate(date)
-                                  if (occurrence) {
-                                    openTrackerEditor('habits', item.id, occurrence.id, date)
-                                  }
                                 }}
                               />
                             </div>
                           </article>
                         )
                       })}
-                      </div>
-                    </section>
-                    {index === categoryNames.length - 1 && (
-                      <div
-                        className={`tracker-category-drop-zone ${dragOverCategoryName === 'after:last' ? 'is-drop-target' : ''}`}
-                        onDragOver={(event) => {
-                          event.preventDefault()
-                          setDragOverCategoryName('after:last')
-                        }}
-                        onDrop={() => {
-                          if (!draggedCategoryName || draggedCategoryName === category) return
-                          handleHabitCategoryReorder(draggedCategoryName, category, 'after')
-                          setDragOverCategoryName(null)
-                        }}
-                      >
-                        <span>Deposer ici</span>
-                      </div>
-                    )}
-                  </Fragment>
+                    </div>
+                  </section>
                 ))
               })()}
             </div>
