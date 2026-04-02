@@ -3040,7 +3040,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                       </div>
                     </header>
                     <div className="tracker-category-list">
-                      {grouped[category].map((item) => {
+                      {(grouped[category] ?? []).map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
