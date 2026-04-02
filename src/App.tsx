@@ -1463,6 +1463,16 @@ function App() {
     const reorderedById = Object.fromEntries(reorderedItems.map((item) => [item.id, item.order ?? 0]))
     patchState({ trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
   }
+
+  function handleHabitCategoryReorder(draggedCategory: string | null, targetCategory: string) {
+    if (!draggedCategory || draggedCategory === targetCategory) return
+    const lockKey = `category-habits-${draggedCategory}-${targetCategory}`
+    if (dragHoverLockRef.current === lockKey) return
+    dragHoverLockRef.current = lockKey
+    reorderHabitCategories(draggedCategory, targetCategory)
+    setDraggedCategoryName(targetCategory)
+    setDragOverCategoryName(targetCategory)
+  }
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
   const yearFinalDueDate = goalDueDateForHorizon('year', goalPeriodDate, monthWeeks)
@@ -2976,16 +2986,18 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     draggable
                     onDragStart={() => setDraggedCategoryName(category)}
                     onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
-                    onDragEnter={() => setDragOverCategoryName(category)}
+                    onDragEnter={() => {
+                      setDragOverCategoryName(category)
+                      handleHabitCategoryReorder(draggedCategoryName, category)
+                    }}
                     onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
-                    onDragOver={(event) => { event.preventDefault() }}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                      setDragOverCategoryName(category)
+                      handleHabitCategoryReorder(draggedCategoryName, category)
+                    }}
                     onDrop={() => {
-                      if (!draggedCategoryName || draggedCategoryName === category) return
-                      const lockKey = `category-habits-${draggedCategoryName}-${category}`
-                      if (dragHoverLockRef.current === lockKey) return
-                      dragHoverLockRef.current = lockKey
-                      reorderHabitCategories(draggedCategoryName, category)
-                      setDraggedCategoryName(category)
+                      handleHabitCategoryReorder(draggedCategoryName, category)
                       setDragOverCategoryName(null)
                     }}
                     className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
