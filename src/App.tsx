@@ -132,6 +132,7 @@ type AppState = {
   goalPeriodNotes?: Record<string, string>
   lastTrackerCategory?: string
   lastPerformanceCategoryFilter?: string
+  habitCategoryOrder?: string[]
 }
 
 type DebugEntry = {
@@ -1026,6 +1027,7 @@ function normalizeState(raw: Partial<AppState>): AppState {
     goalPeriodNotes: raw.goalPeriodNotes ?? {},
     lastTrackerCategory: raw.lastTrackerCategory ?? '',
     lastPerformanceCategoryFilter: raw.lastPerformanceCategoryFilter ?? '',
+    habitCategoryOrder: Array.isArray(raw.habitCategoryOrder) ? raw.habitCategoryOrder.map((value) => String(value)) : [],
   }
 }
 
@@ -1077,8 +1079,12 @@ function resequenceCategories(categories: string[], grouped: Record<string, Trac
 }
 
 
-function orderedCategoryNames(items: TrackerItem[]) {
+function orderedCategoryNames(items: TrackerItem[], preferredOrder: string[] = []) {
   const names: string[] = []
+  for (const name of preferredOrder) {
+    const normalized = (name || '').trim() || 'Autres'
+    if (!names.includes(normalized)) names.push(normalized)
+  }
   for (const item of items) {
     const name = (item.category || '').trim() || 'Autres'
     if (!names.includes(name)) names.push(name)
@@ -1465,7 +1471,7 @@ function App() {
       acc[key].push(item)
       return acc
     }, {})
-    const categoryNames = orderedCategoryNames(visibleHabitItems)
+    const categoryNames = orderedCategoryNames(visibleHabitItems, state.habitCategoryOrder ?? [])
     const draggedIndex = categoryNames.indexOf(draggedCategory)
     const targetIndex = categoryNames.indexOf(targetCategory)
     if (draggedIndex < 0 || targetIndex < 0) return
@@ -1476,11 +1482,14 @@ function App() {
     reorderedCategories.splice(Math.max(0, insertionIndex), 0, draggedCategory)
     const reorderedItems = resequenceCategories(reorderedCategories, grouped)
     const reorderedById = Object.fromEntries(reorderedItems.map((item) => [item.id, item.order ?? 0]))
-    patchState({ trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
+    patchState({
+      trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item),
+      habitCategoryOrder: reorderedCategories,
+    })
   }
 
   function moveHabitCategory(category: string, direction: 'up' | 'down') {
-    const categoryNames = orderedCategoryNames(visibleHabitItems)
+    const categoryNames = orderedCategoryNames(visibleHabitItems, state.habitCategoryOrder ?? [])
     const index = categoryNames.indexOf(category)
     if (index < 0) return
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -2993,7 +3002,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                   acc[key].push(item)
                   return acc
                 }, {})
-                const categoryNames = orderedCategoryNames(visibleHabitItems)
+                const categoryNames = orderedCategoryNames(visibleHabitItems, state.habitCategoryOrder ?? [])
 
                 return categoryNames.map((category, index) => (
                   <section
