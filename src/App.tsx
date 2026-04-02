@@ -1449,7 +1449,7 @@ function App() {
     patchState({ goals: state.goals.map((goal) => reorderedById[goal.id] != null ? { ...goal, order: reorderedById[goal.id] } : goal) })
   }
 
-  function reorderHabitCategories(draggedCategory: string, targetCategory: string) {
+  function reorderHabitCategories(draggedCategory: string, targetCategory: string, position: 'before' | 'after' = 'before') {
     if (draggedCategory === targetCategory) return
     const grouped = visibleHabitItems.reduce<Record<string, TrackerItem[]>>((acc, item) => {
       const key = (item.category || '').trim() || 'Autres'
@@ -1458,20 +1458,27 @@ function App() {
       return acc
     }, {})
     const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
-    const reorderedCategories = moveItem(categoryNames.map((category) => ({ id: category })), draggedCategory, targetCategory).map((entry) => entry.id)
+    const draggedIndex = categoryNames.indexOf(draggedCategory)
+    const targetIndex = categoryNames.indexOf(targetCategory)
+    if (draggedIndex < 0 || targetIndex < 0) return
+    const reorderedCategories = [...categoryNames]
+    reorderedCategories.splice(draggedIndex, 1)
+    const insertionBase = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex
+    const insertionIndex = position === 'after' ? insertionBase + 1 : insertionBase
+    reorderedCategories.splice(Math.max(0, insertionIndex), 0, draggedCategory)
     const reorderedItems = resequenceCategories(reorderedCategories, grouped)
     const reorderedById = Object.fromEntries(reorderedItems.map((item) => [item.id, item.order ?? 0]))
     patchState({ trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
   }
 
-  function handleHabitCategoryReorder(draggedCategory: string | null, targetCategory: string) {
+  function handleHabitCategoryReorder(draggedCategory: string | null, targetCategory: string, position: 'before' | 'after' = 'before') {
     if (!draggedCategory || draggedCategory === targetCategory) return
-    const lockKey = `category-habits-${draggedCategory}-${targetCategory}`
+    const lockKey = `category-habits-${draggedCategory}-${targetCategory}-${position}`
     if (dragHoverLockRef.current === lockKey) return
     dragHoverLockRef.current = lockKey
-    reorderHabitCategories(draggedCategory, targetCategory)
-    setDraggedCategoryName(targetCategory)
-    setDragOverCategoryName(targetCategory)
+    reorderHabitCategories(draggedCategory, targetCategory, position)
+    setDraggedCategoryName(draggedCategory)
+    setDragOverCategoryName(`${position}:${targetCategory}`)
   }
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
@@ -3011,7 +3018,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         setDragOverCategoryName(category)
                       }}
                       onDrop={() => {
-                        handleHabitCategoryReorder(draggedCategoryName, category)
+                        handleHabitCategoryReorder(draggedCategoryName, category, 'before')
                         setDragOverCategoryName(null)
                       }}
                       className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
@@ -3088,7 +3095,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         }}
                         onDrop={() => {
                           if (!draggedCategoryName || draggedCategoryName === category) return
-                          handleHabitCategoryReorder(draggedCategoryName, category)
+                          handleHabitCategoryReorder(draggedCategoryName, category, 'after')
                           setDragOverCategoryName(null)
                         }}
                       >
