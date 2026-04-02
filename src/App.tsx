@@ -1076,6 +1076,16 @@ function resequenceCategories(categories: string[], grouped: Record<string, Trac
   return categories.flatMap((category) => resequenceTrackerItems(grouped[category] ?? []))
 }
 
+
+function orderedCategoryNames(items: TrackerItem[]) {
+  const names: string[] = []
+  for (const item of items) {
+    const name = (item.category || '').trim() || 'Autres'
+    if (!names.includes(name)) names.push(name)
+  }
+  return names
+}
+
 function resequenceGoals(goals: Goal[]) {
   return goals.map((goal, index) => ({ ...goal, order: index }))
 }
@@ -1455,7 +1465,7 @@ function App() {
       acc[key].push(item)
       return acc
     }, {})
-    const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+    const categoryNames = orderedCategoryNames(visibleHabitItems)
     const draggedIndex = categoryNames.indexOf(draggedCategory)
     const targetIndex = categoryNames.indexOf(targetCategory)
     if (draggedIndex < 0 || targetIndex < 0) return
@@ -1470,13 +1480,7 @@ function App() {
   }
 
   function moveHabitCategory(category: string, direction: 'up' | 'down') {
-    const grouped = visibleHabitItems.reduce<Record<string, TrackerItem[]>>((acc, item) => {
-      const key = (item.category || '').trim() || 'Autres'
-      if (!acc[key]) acc[key] = []
-      acc[key].push(item)
-      return acc
-    }, {})
-    const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+    const categoryNames = orderedCategoryNames(visibleHabitItems)
     const index = categoryNames.indexOf(category)
     if (index < 0) return
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -2989,7 +2993,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                   acc[key].push(item)
                   return acc
                 }, {})
-                const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+                const categoryNames = orderedCategoryNames(visibleHabitItems)
 
                 return categoryNames.map((category, index) => (
                   <section
