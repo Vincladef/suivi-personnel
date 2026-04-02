@@ -440,6 +440,25 @@ textarea {
   gap: 0.7rem;
 }
 
+.tracker-category-drop-zone {
+  min-height: 26px;
+  border-radius: 14px;
+  border: 2px dashed transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  font-size: 0.72rem;
+  transition: all 140ms ease;
+}
+
+.tracker-category-drop-zone.is-drop-target {
+  min-height: 42px;
+  border-color: rgba(40, 64, 125, 0.35);
+  background: rgba(226, 234, 247, 0.72);
+  color: #41506a;
+}
+
 .tracker-list,
 .goal-list {
   height: 100%;

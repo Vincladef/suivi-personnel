@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { FormEvent, MouseEvent } from 'react'
 import {
   collection,
@@ -2980,35 +2980,49 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 }, {})
                 const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
 
-                return categoryNames.map((category) => (
-                  <section
-                    key={category}
-                    draggable
-                    onDragStart={() => setDraggedCategoryName(category)}
-                    onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
-                    onDragEnter={() => {
-                      setDragOverCategoryName(category)
-                      handleHabitCategoryReorder(draggedCategoryName, category)
-                    }}
-                    onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
-                    onDragOver={(event) => {
-                      event.preventDefault()
-                      setDragOverCategoryName(category)
-                      handleHabitCategoryReorder(draggedCategoryName, category)
-                    }}
-                    onDrop={() => {
-                      handleHabitCategoryReorder(draggedCategoryName, category)
-                      setDragOverCategoryName(null)
-                    }}
-                    className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
-                  >
-                    <header className={`tracker-category-head ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}>
-                      <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
-                      <span className="tracker-category-label">{category}</span>
-                      <span className="tracker-category-drop-hint">Glisser pour reordonner</span>
-                    </header>
-                    <div className="tracker-category-list">
-                      {grouped[category].map((item) => {
+                return categoryNames.map((category, index) => (
+                  <Fragment key={category}>
+                    <div
+                      className={`tracker-category-drop-zone ${dragOverCategoryName === `before:${category}` ? 'is-drop-target' : ''}`}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        setDragOverCategoryName(`before:${category}`)
+                      }}
+                      onDrop={() => {
+                        if (!draggedCategoryName || draggedCategoryName === category) return
+                        const targetCategory = categoryNames[Math.max(0, index - 1)] ?? category
+                        handleHabitCategoryReorder(draggedCategoryName, targetCategory)
+                        setDragOverCategoryName(null)
+                      }}
+                    >
+                      <span>Deposer ici</span>
+                    </div>
+                    <section
+                      key={category}
+                      draggable
+                      onDragStart={() => setDraggedCategoryName(category)}
+                      onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
+                      onDragEnter={() => {
+                        setDragOverCategoryName(category)
+                      }}
+                      onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        setDragOverCategoryName(category)
+                      }}
+                      onDrop={() => {
+                        handleHabitCategoryReorder(draggedCategoryName, category)
+                        setDragOverCategoryName(null)
+                      }}
+                      className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
+                    >
+                      <header className={`tracker-category-head ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}>
+                        <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
+                        <span className="tracker-category-label">{category}</span>
+                        <span className="tracker-category-drop-hint">Glisser pour reordonner</span>
+                      </header>
+                      <div className="tracker-category-list">
+                        {grouped[category].map((item) => {
                         const isCelebrating = celebration?.module === 'habits' && celebration.itemId === item.id
                         const habitEntry = resolvedHabitOccurrence.entries[item.id] ?? emptyEntry(item)
                         const habitToneState = displayToneState(item.inputKind, habitEntry, item.target)
@@ -3063,8 +3077,25 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                           </article>
                         )
                       })}
-                    </div>
-                  </section>
+                      </div>
+                    </section>
+                    {index === categoryNames.length - 1 && (
+                      <div
+                        className={`tracker-category-drop-zone ${dragOverCategoryName === 'after:last' ? 'is-drop-target' : ''}`}
+                        onDragOver={(event) => {
+                          event.preventDefault()
+                          setDragOverCategoryName('after:last')
+                        }}
+                        onDrop={() => {
+                          if (!draggedCategoryName || draggedCategoryName === category) return
+                          handleHabitCategoryReorder(draggedCategoryName, category)
+                          setDragOverCategoryName(null)
+                        }}
+                      >
+                        <span>Deposer ici</span>
+                      </div>
+                    )}
+                  </Fragment>
                 ))
               })()}
             </div>
