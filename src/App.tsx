@@ -3123,7 +3123,6 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                       patchState({ lastPerformanceCategoryFilter: next })
                     }}
                   >
-                    <option value="">Toutes les catégories</option>
                     {performanceCategories.map((category) => (
                       <option key={category} value={category}>{category}</option>
                     ))}
