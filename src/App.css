@@ -437,18 +437,25 @@ textarea {
 
 .tracker-category-order-actions {
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.tracker-category-order-actions .compact-icon-action[disabled] {
-  opacity: 0.35;
+  display: none;
 }
 
 .tracker-category-list {
   display: grid;
   gap: 0.7rem;
+}
+
+.tracker-category-drop-zone {
+  height: 8px;
+  border-radius: 999px;
+  margin: 2px 18px;
+  background: transparent;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.tracker-category-drop-zone.is-drop-target {
+  background: rgba(40, 64, 125, 0.22);
+  transform: scaleY(1.15);
 }
 
 
