@@ -1072,6 +1072,10 @@ function resequenceTrackerItems(items: TrackerItem[]) {
   return items.map((item, index) => ({ ...item, order: index }))
 }
 
+function resequenceCategories(categories: string[], grouped: Record<string, TrackerItem[]>) {
+  return categories.flatMap((category) => resequenceTrackerItems(grouped[category] ?? []))
+}
+
 function resequenceGoals(goals: Goal[]) {
   return goals.map((goal, index) => ({ ...goal, order: index }))
 }
@@ -1422,8 +1426,10 @@ function App() {
   const sortedGoals = sortGoals(state.goals)
   const [draggedTrackerId, setDraggedTrackerId] = useState<string | null>(null)
   const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null)
+  const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(null)
   const [dragOverTrackerId, setDragOverTrackerId] = useState<string | null>(null)
   const [dragOverGoalId, setDragOverGoalId] = useState<string | null>(null)
+  const [dragOverCategoryName, setDragOverCategoryName] = useState<string | null>(null)
   const dragHoverLockRef = useRef<string>('')
 
   function reorderTrackersWithinCategory(module: ModuleKey, category: string, draggedId: string, targetId: string) {
@@ -1441,6 +1447,21 @@ function App() {
     const reorderedBucket = resequenceGoals(moveItem(bucket as Goal[], draggedId, targetId))
     const reorderedById = Object.fromEntries(reorderedBucket.map((goal) => [goal.id, goal.order ?? 0]))
     patchState({ goals: state.goals.map((goal) => reorderedById[goal.id] != null ? { ...goal, order: reorderedById[goal.id] } : goal) })
+  }
+
+  function reorderHabitCategories(draggedCategory: string, targetCategory: string) {
+    if (draggedCategory === targetCategory) return
+    const grouped = visibleHabitItems.reduce<Record<string, TrackerItem[]>>((acc, item) => {
+      const key = (item.category || '').trim() || 'Autres'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(item)
+      return acc
+    }, {})
+    const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+    const reorderedCategories = moveItem(categoryNames.map((category) => ({ id: category })), draggedCategory, targetCategory).map((entry) => entry.id)
+    const reorderedItems = resequenceCategories(reorderedCategories, grouped)
+    const reorderedById = Object.fromEntries(reorderedItems.map((item) => [item.id, item.order ?? 0]))
+    patchState({ trackerItems: state.trackerItems.map((item) => item.module === 'habits' && reorderedById[item.id] != null ? { ...item, order: reorderedById[item.id] } : item) })
   }
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
@@ -2950,7 +2971,25 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 const categoryNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
 
                 return categoryNames.map((category) => (
-                  <section key={category} className="tracker-category-section">
+                  <section
+                    key={category}
+                    draggable
+                    onDragStart={() => setDraggedCategoryName(category)}
+                    onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
+                    onDragEnter={() => setDragOverCategoryName(category)}
+                    onDragLeave={() => { if (dragOverCategoryName === category) setDragOverCategoryName(null) }}
+                    onDragOver={(event) => { event.preventDefault() }}
+                    onDrop={() => {
+                      if (!draggedCategoryName || draggedCategoryName === category) return
+                      const lockKey = `category-habits-${draggedCategoryName}-${category}`
+                      if (dragHoverLockRef.current === lockKey) return
+                      dragHoverLockRef.current = lockKey
+                      reorderHabitCategories(draggedCategoryName, category)
+                      setDraggedCategoryName(category)
+                      setDragOverCategoryName(null)
+                    }}
+                    className={`tracker-category-section is-draggable ${draggedCategoryName === category ? 'is-dragging' : ''} ${dragOverCategoryName === category ? 'is-drop-target' : ''}`}
+                  >
                     <header className="tracker-category-head">
                       <span className="tracker-category-label">{category}</span>
                     </header>
