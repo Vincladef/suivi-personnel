@@ -1946,16 +1946,18 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
   }
 
   function renderChecklistResponseEditor(
-    checklistTemplate: string[],
-    values: ChecklistStatus[],
+    checklistTemplate: string[] | undefined,
+    values: ChecklistStatus[] | undefined,
     onChange: (next: ChecklistStatus[]) => void,
   ) {
+    const safeTemplate = checklistTemplate ?? []
+    const safeValues = values ?? []
     return (
       <div className="checklist-box checklist-response-list">
-        {checklistTemplate.map((label, index) => {
-          const value = values[index] ?? 'unknown'
+        {safeTemplate.map((label, index) => {
+          const value = safeValues[index] ?? 'unknown'
           const setValue = (nextValue: ChecklistStatus) => {
-            const next = checklistTemplate.map((_, itemIndex) => values[itemIndex] ?? 'unknown')
+            const next = safeTemplate.map((_, itemIndex) => safeValues[itemIndex] ?? 'unknown')
             next[index] = nextValue
             onChange(next)
           }
@@ -1987,7 +1989,7 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
     inputKind: InputKind,
     target: TargetConfig | null,
     entry: { state: EntryState; score: number | null; checklist: ChecklistStatus[]; numericValue: number | null; note: string },
-    checklistTemplate: string[],
+    checklistTemplate: string[] | undefined,
     onPatch: (patch: Partial<TrackerSubEntry>) => void,
   ) {
     if (entry.state === 'rest' || entry.state === 'inactive') {
@@ -2113,15 +2115,15 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
 
     return (
       <div className="editor-grid compact-editor-grid">
-        {renderLeafResponseEditor(item.inputKind, item.target, entry, item.checklistTemplate, (patch) => {
+        {renderLeafResponseEditor(item.inputKind, item.target, entry, item.checklistTemplate ?? [], (patch) => {
           const next = { ...entry, ...patch }
           next.state = deriveState(item, next as TrackerEntry)
           updateTrackerResponseDraft(next as TrackerEntry)
         })}
-        {item.subItems.length > 0 && (
+        {(item.subItems ?? []).length > 0 && (
           <div className="subitem-group compact-subitem-group">
             <div className="subitem-list">
-              {item.subItems.map((subItem) => {
+              {(item.subItems ?? []).map((subItem) => {
                 const subEntry = entry.subEntries[subItem.id] ?? emptySubEntry(subItem)
                 return (
                   <section key={subItem.id} className="subitem-card compact-subitem-card">
