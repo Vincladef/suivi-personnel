@@ -437,7 +437,21 @@ textarea {
 
 .tracker-category-order-actions {
   margin-left: auto;
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.tracker-category-order-actions .compact-icon-action {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 0.9rem;
+  opacity: 0.72;
+}
+
+.tracker-category-order-actions .compact-icon-action[disabled] {
+  opacity: 0.25;
 }
 
 .tracker-category-list {
@@ -445,18 +459,6 @@ textarea {
   gap: 0.7rem;
 }
 
-.tracker-category-drop-zone {
-  height: 8px;
-  border-radius: 999px;
-  margin: 2px 18px;
-  background: transparent;
-  transition: background 120ms ease, transform 120ms ease;
-}
-
-.tracker-category-drop-zone.is-drop-target {
-  background: rgba(40, 64, 125, 0.22);
-  transform: scaleY(1.15);
-}
 
 
 .tracker-list,

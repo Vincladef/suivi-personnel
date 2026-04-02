@@ -1444,8 +1444,6 @@ function App() {
   const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null)
   const [dragOverTrackerId, setDragOverTrackerId] = useState<string | null>(null)
   const [dragOverGoalId, setDragOverGoalId] = useState<string | null>(null)
-  const [draggedCategoryName, setDraggedCategoryName] = useState<string | null>(null)
-  const [dragOverCategoryName, setDragOverCategoryName] = useState<string | null>(null)
   const dragHoverLockRef = useRef<string>('')
 
   function reorderTrackersWithinCategory(module: ModuleKey, category: string, draggedId: string, targetId: string) {
@@ -1490,15 +1488,17 @@ function App() {
     })
   }
 
-  function handleHabitCategoryReorder(draggedCategory: string | null, targetCategory: string, position: 'before' | 'after' = 'before') {
-    if (!draggedCategory || draggedCategory === targetCategory) return
-    const lockKey = `category-habits-${draggedCategory}-${targetCategory}-${position}`
-    if (dragHoverLockRef.current === lockKey) return
-    dragHoverLockRef.current = lockKey
-    reorderHabitCategories(draggedCategory, targetCategory, position)
-    setDraggedCategoryName(draggedCategory)
-    setDragOverCategoryName(`${position}:${targetCategory}`)
+
+  function moveHabitCategory(category: string, direction: 'up' | 'down') {
+    const categoryNames = orderedCategoryNames(visibleHabitItems, state.habitCategoryOrder ?? [])
+    const index = categoryNames.indexOf(category)
+    if (index < 0) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    const targetCategory = categoryNames[targetIndex]
+    if (!targetCategory) return
+    reorderHabitCategories(category, targetCategory, direction === 'up' ? 'before' : 'after')
   }
+
   const monthWeeks = listWeeksInMonth(goalPeriodDate)
   const monthFinalDueDate = goalDueDateForHorizon('month', goalPeriodDate, monthWeeks)
   const yearFinalDueDate = goalDueDateForHorizon('year', goalPeriodDate, monthWeeks)
@@ -3006,42 +3006,30 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                 }, {})
                 const categoryNames = orderedCategoryNames(visibleHabitItems, state.habitCategoryOrder ?? [])
 
-                return categoryNames.map((category) => (
+                return categoryNames.map((category, index) => (
                   <section
                     key={category}
-                    className={`tracker-category-section ${draggedCategoryName === category ? 'is-dragging' : ''}`}
+                    className="tracker-category-section"
                   >
-                    <div
-                      className={`tracker-category-drop-zone ${dragOverCategoryName === `before:${category}` ? 'is-drop-target' : ''}`}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setDragOverCategoryName(`before:${category}`)
-                      }}
-                      onDrop={() => {
-                        handleHabitCategoryReorder(draggedCategoryName, category, 'before')
-                        setDragOverCategoryName(null)
-                      }}
-                    />
-                    <header
-                      draggable
-                      onDragStart={() => setDraggedCategoryName(category)}
-                      onDragEnd={() => { setDraggedCategoryName(null); setDragOverCategoryName(null); dragHoverLockRef.current = '' }}
-                      className={`tracker-category-head is-draggable ${draggedCategoryName === category ? 'is-active-drag-handle' : ''}`}
-                    >
+                    <header className="tracker-category-head">
                       <span className="drag-handle tracker-category-drag-handle" aria-hidden="true">⋮⋮</span>
                       <span className="tracker-category-label">{category}</span>
-                      <div className="tracker-category-order-actions" aria-hidden="true">
+                      <div className="tracker-category-order-actions">
                         <button
                           type="button"
                           className="ghost-icon compact-icon-action"
-                          tabIndex={-1}
+                          aria-label={`Monter la categorie ${category}`}
+                          onClick={() => moveHabitCategory(category, 'up')}
+                          disabled={index === 0}
                         >
                           ↑
                         </button>
                         <button
                           type="button"
                           className="ghost-icon compact-icon-action"
-                          tabIndex={-1}
+                          aria-label={`Descendre la categorie ${category}`}
+                          onClick={() => moveHabitCategory(category, 'down')}
+                          disabled={index === categoryNames.length - 1}
                         >
                           ↓
                         </button>
@@ -3099,17 +3087,6 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         )
                       })}
                     </div>
-                    <div
-                      className={`tracker-category-drop-zone ${dragOverCategoryName === `after:${category}` ? 'is-drop-target' : ''}`}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setDragOverCategoryName(`after:${category}`)
-                      }}
-                      onDrop={() => {
-                        handleHabitCategoryReorder(draggedCategoryName, category, 'after')
-                        setDragOverCategoryName(null)
-                      }}
-                    />
                   </section>
                 ))
               })()}
