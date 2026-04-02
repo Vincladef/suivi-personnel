@@ -1860,6 +1860,10 @@ function App() {
         nextGoal.numericValue = null
         nextGoal.note = ''
       }
+      if (nextGoal.resultKind === 'score' || nextGoal.resultKind === 'rating10') {
+        nextGoal.numericValue = null
+        nextGoal.note = ''
+      }
       return nextGoal
     })
     patchState({ goals: nextGoals })
@@ -1889,6 +1893,13 @@ function App() {
       if (goal.score == null) return 'unknown'
       if (goal.score >= 3) return 'success'
       if (goal.score === 2) return 'neutral'
+      return 'failed'
+    }
+
+    if (goal.resultKind === 'rating10') {
+      if (goal.score == null) return 'unknown'
+      if (goal.score >= 8) return 'success'
+      if (goal.score >= 5) return 'neutral'
       return 'failed'
     }
 

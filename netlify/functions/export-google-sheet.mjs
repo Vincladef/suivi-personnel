@@ -390,6 +390,9 @@ function responseLabel(kind, target, entry) {
       0: 'Non',
     }[entry.score] ?? ''
   }
+  if (kind === 'rating10') {
+    return entry.score == null ? '' : `${entry.score}/10`
+  }
   if (kind === 'checklist') {
     const template = Array.isArray(target) ? target : []
     if (!Array.isArray(entry.checklist) || template.length === 0) return ''
