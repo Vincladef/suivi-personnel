@@ -1731,7 +1731,7 @@ function App() {
 
         const nextEntry: TrackerEntry = {
           state: current.state === 'rest' || current.state === 'inactive' ? current.state : 'unknown',
-          score: item.inputKind === 'score' ? current.score : null,
+          score: item.inputKind === 'score' || item.inputKind === 'rating10' ? current.score : null,
           checklist: item.inputKind === 'checklist'
             ? item.checklistTemplate.map((_, index) => normalizeChecklistState(current.checklist[index]))
             : [],
