@@ -1436,9 +1436,7 @@ function App() {
       if (!performanceCategoryFilter) return true
       return (item.category || '').trim() === performanceCategoryFilter
     })
-  const hasAnyPerformance = performanceItems.length > 0
-  const hasVisiblePerformance = visiblePerformanceItems.length > 0
-  const effectivePerformanceFilter = performanceCategoryFilter && !hasVisiblePerformance && hasAnyPerformance ? '' : performanceCategoryFilter
+  const effectivePerformanceFilter = performanceCategoryFilter
   const selectedHabitDateLabel = formatLongDate(selectedHabitDate)
   const previousHabitDate = shiftDate(selectedHabitDate, -1)
   const nextHabitDate = shiftDate(selectedHabitDate, 1)
