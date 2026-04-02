@@ -3113,22 +3113,24 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
             <div className="surface-head">
               <div className="surface-actions">
                 {performanceCategories.length > 0 && (
-                  <div className="category-pill-filter">
-                    {performanceCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        className={`ghost-button category-pill ${effectivePerformanceFilter === category ? 'active' : ''}`}
-                        onClick={() => {
-                          const next = effectivePerformanceFilter === category ? '' : category
-                          setPerformanceCategoryFilter(next)
-                          patchState({ lastPerformanceCategoryFilter: next })
-                        }}
-                      >
-                        {category}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="performance-category-select-wrap">
+                    <span className="sr-only">Filtrer les performances par catégorie</span>
+                    <select
+                      className="performance-category-select"
+                      aria-label="Filtrer les performances par catégorie"
+                      value={effectivePerformanceFilter}
+                      onChange={(event) => {
+                        const next = event.target.value
+                        setPerformanceCategoryFilter(next)
+                        patchState({ lastPerformanceCategoryFilter: next })
+                      }}
+                    >
+                      <option value="">Toutes les catégories</option>
+                      {performanceCategories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
                 )}
               </div>
               <button type="button" className="fab-button" aria-label="Ajouter une performance" onClick={() => openTrackerModal('performances')}>+</button>
