@@ -289,7 +289,7 @@ const defaultTrackerDraft = (module: ModuleKey): TrackerDraft => ({
   title: '',
   description: '',
   category: '',
-  inputKind: 'tristate',
+  inputKind: 'score',
   priority: 'medium',
   frequencyKind: 'daily',
   frequencyDays: [1, 2, 3, 4, 5],
