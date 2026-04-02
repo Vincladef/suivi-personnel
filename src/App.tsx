@@ -276,7 +276,7 @@ function normalizeChecklistState(value: unknown): ChecklistStatus {
 const defaultSubDraft = (): TrackerSubDraft => ({
   id: crypto.randomUUID(),
   title: '',
-  inputKind: 'tristate',
+  inputKind: 'score',
   checklistItems: [],
   newChecklistItem: '',
   targetMode: 'atLeast',
@@ -308,7 +308,7 @@ const defaultGoalDraft = (): GoalDraft => ({
   horizon: 'week',
   dueDate: today,
   weekDate: today,
-  resultKind: 'tristate',
+  resultKind: 'score',
   priority: 'medium',
   reminder: true,
   checklistItems: [],
@@ -2827,8 +2827,8 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
         </div>
         <input value={subItem.title} onChange={(event) => patchSubItemDraft(subItem.id, { title: event.target.value })} placeholder="Titre de la sous-consigne" />
         <select value={subItem.inputKind} onChange={(event) => patchSubItemDraft(subItem.id, { inputKind: event.target.value as InputKind })}>
-          <option value="tristate">Oui / Non</option>
           <option value="score">Echelle qualitative</option>
+          <option value="tristate">Oui / Non</option>
           <option value="checklist">Checklist</option>
           <option value="numeric">Valeur chiffree</option>
           <option value="note">Note libre</option>
@@ -3497,8 +3497,8 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     })}
                   />
                   <select value={goalDraft.resultKind} onChange={(event) => setGoalDraft({ ...goalDraft, resultKind: event.target.value as InputKind })}>
-                    <option value="tristate">Oui / Non</option>
                     <option value="score">Echelle qualitative</option>
+                    <option value="tristate">Oui / Non</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
@@ -3540,8 +3540,8 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                         </div>
                         <input value={subItem.title} onChange={(event) => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.map((candidate) => candidate.id === subItem.id ? { ...candidate, title: event.target.value } : candidate) })} placeholder="Titre du sous-objectif" />
                         <select value={subItem.inputKind} onChange={(event) => setGoalDraft({ ...goalDraft, subItems: goalDraft.subItems.map((candidate) => candidate.id === subItem.id ? { ...candidate, inputKind: event.target.value as InputKind } : candidate) })}>
-                          <option value="tristate">Oui / Non</option>
                           <option value="score">Echelle qualitative</option>
+                          <option value="tristate">Oui / Non</option>
                           <option value="checklist">Checklist</option>
                           <option value="numeric">Valeur chiffree</option>
                           <option value="note">Note libre</option>
@@ -3604,8 +3604,8 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
                     </div>
                   </div>
                   <select value={trackerDraft.inputKind} onChange={(event) => setTrackerDraft({ ...trackerDraft, inputKind: event.target.value as InputKind, module: modalView })}>
-                    <option value="tristate">Oui / Non</option>
                     <option value="score">Echelle qualitative</option>
+                    <option value="tristate">Oui / Non</option>
                     <option value="checklist">Checklist</option>
                     <option value="numeric">Valeur chiffree</option>
                     <option value="note">Note libre</option>
