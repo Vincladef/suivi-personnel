@@ -36,7 +36,7 @@ declare global {
 
 type ModuleKey = 'habits' | 'performances'
 type ViewKey = 'habits' | 'performances' | 'goals' | 'admin'
-type InputKind = 'tristate' | 'score' | 'checklist' | 'numeric' | 'note'
+type InputKind = 'tristate' | 'score' | 'rating10' | 'checklist' | 'numeric' | 'note'
 type Priority = 'high' | 'medium' | 'low' | 'archived'
 type EntryState = 'unknown' | 'success' | 'failed' | 'excused' | 'rest' | 'inactive'
 type FrequencyKind = 'daily' | 'weekdays' | 'selected'
@@ -412,6 +412,12 @@ function deriveLeafState(
     if (entry.score === 2) return 'excused'
     return 'failed'
   }
+  if (inputKind === 'rating10') {
+    if (entry.score == null) return 'unknown'
+    if (entry.score >= 8) return 'success'
+    if (entry.score >= 5) return 'excused'
+    return 'failed'
+  }
   if (inputKind === 'checklist') {
     if (entry.state === 'failed' && entry.checklist.every((value) => value === 'unknown')) return 'failed'
     if (entry.checklist.length === 0 || entry.checklist.every((value) => value === 'unknown')) return 'unknown'
@@ -434,6 +440,7 @@ function isFullSuccess(inputKind: InputKind, target: TargetConfig | null | undef
   if (entry.state === 'rest' || entry.state === 'inactive') return false
   if (inputKind === 'tristate') return entry.state === 'success'
   if (inputKind === 'score') return entry.score != null && entry.score >= 4
+  if (inputKind === 'rating10') return entry.score != null && entry.score >= 8
   if (inputKind === 'checklist') {
     return entry.checklist.length > 0 && entry.checklist.every((value) => value === 'done' || value === 'excused')
   }
@@ -475,6 +482,12 @@ function displayToneState(inputKind: InputKind, entry: { state: EntryState; scor
     if (entry.score == null) return 'unknown'
     if (entry.score >= 3) return 'success'
     if (entry.score === 2) return 'excused'
+    return 'failed'
+  }
+  if (inputKind === 'rating10') {
+    if (entry.score == null) return 'unknown'
+    if (entry.score >= 8) return 'success'
+    if (entry.score >= 5) return 'excused'
     return 'failed'
   }
   if (inputKind === 'checklist') {
@@ -539,8 +552,18 @@ function scoreTone(score: number | null | undefined): 'failed-0' | 'failed-1' | 
   return 'success-4'
 }
 
+function rating10Tone(score: number | null | undefined): 'failed-0' | 'failed-1' | 'neutral-2' | 'success-3' | 'success-4' | 'unknown' {
+  if (score == null) return 'unknown'
+  if (score <= 2) return 'failed-0'
+  if (score <= 4) return 'failed-1'
+  if (score <= 6) return 'neutral-2'
+  if (score <= 8) return 'success-3'
+  return 'success-4'
+}
+
 function trackerToneClass(item: TrackerItem, entry: TrackerEntry) {
   if (item.inputKind === 'score') return `state-tone-${scoreTone(entry.score)}`
+  if (item.inputKind === 'rating10') return `state-tone-${rating10Tone(entry.score)}`
   if (item.inputKind === 'checklist') return `state-tone-${checklistTone(entry.checklist, entry.state)}`
   if (item.inputKind === 'numeric') return `state-tone-${numericTone(item.target, entry.numericValue)}`
   return `state-tone-${entry.state === 'failed' ? 'failed-0' : entry.state === 'excused' ? 'neutral-2' : entry.state === 'success' ? 'success-4' : 'unknown'}`
@@ -548,6 +571,7 @@ function trackerToneClass(item: TrackerItem, entry: TrackerEntry) {
 
 function goalToneClass(goal: Goal) {
   if (goal.resultKind === 'score') return `tone-${scoreTone(goal.score)}`
+  if (goal.resultKind === 'rating10') return `tone-${rating10Tone(goal.score)}`
   if (goal.resultKind === 'checklist') return `tone-${checklistTone(goal.checklist, goal.status)}`
   if (goal.resultKind === 'numeric') return `tone-${numericTone(goal.target, goal.numericValue)}`
   return `tone-${goal.status === 'failed' ? 'failed-0' : goal.status === 'excused' ? 'neutral-2' : goal.status === 'success' ? 'success-4' : 'unknown'}`
@@ -560,6 +584,9 @@ function entryLabelForInput(inputKind: InputKind, state: EntryState, score?: num
   if (inputKind === 'score') {
     const match = likertOptions.find((option) => option.value === score)
     return match?.label ?? ''
+  }
+  if (inputKind === 'rating10') {
+    return score == null ? '' : `${score}/10`
   }
   if (inputKind === 'checklist') {
     return ''
@@ -2033,6 +2060,22 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
       )
     }
 
+    if (inputKind === 'rating10') {
+      return (
+        <div className="editor-stack">
+          <input
+            type="range"
+            min="0"
+            max="10"
+            step="1"
+            value={entry.score ?? 5}
+            onChange={(event) => onPatch({ score: Number(event.target.value) })}
+          />
+          <span className="editor-hint">{entry.score ?? 5}/10</span>
+        </div>
+      )
+    }
+
     if (inputKind === 'checklist') {
       return renderChecklistResponseEditor(checklistTemplate, entry.checklist, (next) => onPatch({ checklist: next }))
     }
@@ -2830,7 +2873,11 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
         <select value={subItem.inputKind} onChange={(event) => patchSubItemDraft(subItem.id, { inputKind: event.target.value as InputKind })}>
           <option value="score">Echelle de Likert (0-4)</option>
           <option value="tristate">Oui / Non</option>
-          <option value="checklist">Checklist</option>
+          <option value="rating10">Note /10</option>
+          <option value="rating10">Note /10</option>
+                    <option value="rating10">Note /10</option>
+                          <option value="rating10">Note /10</option>
+                    <option value="checklist">Checklist</option>
           <option value="numeric">Valeur chiffree</option>
           <option value="note">Note libre</option>
         </select>
