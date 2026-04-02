@@ -2341,7 +2341,12 @@ function updateTrackerSubEntryDraft(subItem: TrackerSubItem, patch: Partial<Trac
 
     if (!occurrence) return
 
-    updateTrackerResponseDraft(cloneEntry(occurrence.entries[itemId]))
+    const initialEntry = cloneEntry(occurrence.entries[itemId])
+    if (item.inputKind === 'rating10' && initialEntry.score == null) {
+      initialEntry.score = 5
+      initialEntry.state = deriveState(item, initialEntry)
+    }
+    updateTrackerResponseDraft(initialEntry)
     setTrackerEditor({ module, itemId, occurrenceId, date })
     writeDebugLog('tracker-editor-opened', { module, itemId, occurrenceId, date })
   }
