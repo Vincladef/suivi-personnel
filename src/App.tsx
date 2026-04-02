@@ -375,7 +375,7 @@ const seedGoals: Goal[] = []
 function emptySubEntry(item: TrackerSubItem): TrackerSubEntry {
   return {
     state: 'unknown',
-    score: null,
+    score: item.inputKind === 'rating10' ? 5 : null,
     checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map(() => 'unknown' as ChecklistStatus) : [],
     numericValue: null,
     note: '',
@@ -385,7 +385,7 @@ function emptySubEntry(item: TrackerSubItem): TrackerSubEntry {
 function emptyEntry(item: TrackerItem): TrackerEntry {
   return {
     state: 'unknown',
-    score: null,
+    score: item.inputKind === 'rating10' ? 5 : null,
     checklist: item.inputKind === 'checklist' ? item.checklistTemplate.map(() => 'unknown' as ChecklistStatus) : [],
     numericValue: null,
     note: '',
